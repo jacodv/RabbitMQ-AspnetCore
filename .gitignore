@@ -3,3 +3,8 @@
 ################################################################################
 
 /src/IIAB.RabbitMQ.Shared/obj
+/src/IIAB.RabbitMQ.Shared.Tests/obj
+/src/RabbitMQ.Publisher/obj
+/src/RabbitMQ.Subscriber/obj
+/src/.vs/RabbitMQ
+*.user
