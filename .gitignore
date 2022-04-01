@@ -8,3 +8,7 @@
 /src/RabbitMQ.Subscriber/obj
 /src/.vs/RabbitMQ
 *.user
+/src/IIAB.RabbitMQ.Shared.Tests/bin/Debug/net6.0
+/src/RabbitMQ.Publisher/bin/Debug/net6.0
+/src/RabbitMQ.Subscriber/bin/Debug/net6.0
+/src/IIAB.RabbitMQ.Shared/bin/Debug/net6.0
