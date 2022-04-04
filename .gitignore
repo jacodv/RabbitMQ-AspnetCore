@@ -12,3 +12,7 @@
 /src/RabbitMQ.Publisher/bin/Debug/net6.0
 /src/RabbitMQ.Subscriber/bin/Debug/net6.0
 /src/IIAB.RabbitMQ.Shared/bin/Debug/net6.0
+/src/RabbitMQ.AppServer1/bin/Debug/net6.0
+/src/RabbitMQ.AppServer1/obj
+/src/RabbitMQ.Windows.Client/bin/Debug/net6.0-windows
+/src/RabbitMQ.Windows.Client/obj

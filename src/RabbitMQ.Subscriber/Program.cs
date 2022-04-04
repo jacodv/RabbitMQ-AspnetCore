@@ -2,15 +2,15 @@
 
 using IIAB.RabbitMQ.Shared;
 using IIAB.RabbitMQ.Shared.Models;
-using RabbitMQ.Client;
 
+
+Console.WriteLine("Before subscriber starts");
+Console.ReadKey();
 
 var queueSubscriber= new QueueSubscriber(
-  new ConnectionProvider("localhost"),
-  "pub-sub-topic-exchange",
-  "pub-sub-queue",
-  "run.*",
-  ExchangeType.Topic);
+  new ConnectionProvider(null,"localhost"),
+  null,
+  null);
 
 Func<QueueMessage<string>, IDictionary<string, object>, bool> callback = (QueueMessage<string> message, IDictionary<string, object> args) =>
 { 

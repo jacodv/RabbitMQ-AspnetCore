@@ -7,11 +7,19 @@ using RabbitMQ.Client;
 
 Console.WriteLine("Hello, World! - Publisher");
 
+Console.WriteLine("Before publisher starts");
+Console.ReadKey();
+
+
 using var queuePublisher = new QueuePublisher(
   //amqp://guest:guest@localhost:5672"
-  new ConnectionProvider("localhost"),
-  "pub-sub-topic-exchange",
-  ExchangeType.Topic);
+  new ConnectionProvider(null,"localhost"), 
+  null, 
+  new RabbitClientSettings()
+  {
+    ExchangeName = "pub-sub-topic-exchange", 
+    ExchangeType = ExchangeType.Topic
+  });
 
 
 Console.WriteLine("Enter number of messages to create:");
