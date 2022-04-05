@@ -15,11 +15,13 @@ namespace IIAB.RabbitMQ.Shared
     private readonly RabbitConsumerSettings _settings;
     private readonly IModel _model;
     private bool _disposed;
+    private readonly string _queueName;
 
     public QueueSubscriber(
         IConnectionProvider connectionProvider,
         ILogger logger,
-        RabbitConsumerSettings settings)
+        RabbitConsumerSettings settings,
+        string consumerId)
     {
       _connectionProvider = connectionProvider ?? throw new ArgumentNullException(nameof(connectionProvider));
       _logger = logger;
@@ -37,12 +39,15 @@ namespace IIAB.RabbitMQ.Shared
         };
 
       _model.ExchangeDeclare(_settings.ExchangeName, _settings.ExchangeType, arguments: ttl);
-      _model.QueueDeclare(_settings.QueueName,
+
+      _queueName = $"{_settings.QueueName}-{consumerId}";
+      
+      _model.QueueDeclare(_queueName,
           durable: true,
           exclusive: false,
-          autoDelete: false,
+          autoDelete: true,
           arguments: null);
-      _model.QueueBind(_settings.QueueName, _settings.ExchangeName, _settings.RouteKey);
+      _model.QueueBind(_queueName, _settings.ExchangeName, _settings.RouteKey);
       _model.BasicQos(0, _settings.PreFetchCount, false);
     }
 
@@ -59,7 +64,7 @@ namespace IIAB.RabbitMQ.Shared
         }
       };
 
-      _model.BasicConsume(_settings.QueueName, false, consumer);
+      _model.BasicConsume(_queueName, false, consumer);
     }
 
     public void SubscribeAsync<T>(Func<T?, IDictionary<string, object>, Task<bool>> callback)
@@ -78,7 +83,7 @@ namespace IIAB.RabbitMQ.Shared
         }
       };
 
-      _model.BasicConsume(_settings.QueueName, false, consumer);
+      _model.BasicConsume(_queueName, false, consumer);
     }
 
     public void Dispose()
@@ -103,17 +108,17 @@ namespace IIAB.RabbitMQ.Shared
 
     private void _model_ModelShutdown(object? sender, ShutdownEventArgs e)
     {
-      _logger.LogInformation($"RabbitMQ model shutdown: {ConnectionProvider.GetConnectionName(_settings.QueueName)} | {e.ReplyText}");
+      _logger.LogInformation($"RabbitMQ model shutdown: {_queueName} | {e.ReplyText}");
     }
 
     private void _model_CallbackException(object? sender, CallbackExceptionEventArgs e)
     {
-      _logger.LogWarning($"RabbitMQ model callback exception: {ConnectionProvider.GetConnectionName(_settings.QueueName)}\n{JsonSerializer.Serialize(e.Detail)}", e.Exception);
+      _logger.LogWarning($"RabbitMQ model callback exception: {_queueName}\n{JsonSerializer.Serialize(e.Detail)}", e.Exception);
     }
 
     private void _model_BasicRecoverOk(object? sender, EventArgs e)
     {
-      _logger.LogInformation($"RabbitMQ model recover OK: {ConnectionProvider.GetConnectionName(_settings.QueueName)}");
+      _logger.LogInformation($"RabbitMQ model recover OK: {_queueName}");
     }
 
     #endregion

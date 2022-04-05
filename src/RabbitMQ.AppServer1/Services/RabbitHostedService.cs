@@ -11,6 +11,7 @@ namespace RabbitMQ.AppServer1.Services
     private readonly IConnectionProvider? _connectionProvider;
     private readonly RabbitConsumerSettings _consumerSettings;
     private IQueueSubscriber _queueSubscriber;
+    private string _serviceId = Guid.NewGuid().ToString();
 
     public RabbitHostedService(
       ILogger<RabbitHostedService>? logger, 
@@ -29,25 +30,26 @@ namespace RabbitMQ.AppServer1.Services
       _queueSubscriber = new QueueSubscriber(
         _connectionProvider,
         _logger,
-        _consumerSettings);
+        _consumerSettings,
+        ConnectionProvider.GetConnectionName(_serviceId));
 
       _queueSubscriber.SubscribeAsync<QueueMessage<object>>(_handleMessage);
 
-      _logger?.LogInformation($"Starting {nameof(RabbitHostedService)}:\n{JsonSerializer.Serialize(_consumerSettings)}");
+      _logger?.LogInformation(_getLogLine("Starting"));
 
       return Task.CompletedTask;
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-      _logger?.LogInformation($"Stopping {nameof(RabbitHostedService)}:\n{JsonSerializer.Serialize(_consumerSettings)}");
-      _queueSubscriber.Dispose();
+      _logger?.LogInformation(_getLogLine("Stopping"));
+      _queueSubscriber?.Dispose();
       return Task.CompletedTask;
     }
 
     public void Dispose()
     {
-      _logger?.LogInformation($"Disposing {nameof(RabbitHostedService)}:\n{JsonSerializer.Serialize(_consumerSettings)}");
+      _logger?.LogInformation(_getLogLine("Disposing"));
       _queueSubscriber?.Dispose();
     }
 
@@ -57,8 +59,13 @@ namespace RabbitMQ.AppServer1.Services
 
     private Task<bool> _handleMessage(QueueMessage<object> message, IDictionary<string,object> headers)
     {
-      _logger?.LogDebug($"Handling message:\nHeaders:{JsonSerializer.Serialize(headers)} \nMessage:{JsonSerializer.Serialize(message)}");
+      _logger?.LogDebug($"Handling message [{_serviceId}] :\nHeaders:{JsonSerializer.Serialize(headers)} \nMessage:{JsonSerializer.Serialize(message)}");
       return Task.FromResult(true);
+    }
+
+    private string _getLogLine(string action)
+    {
+      return $"{action} {nameof(RabbitHostedService)}[{_serviceId}]:\n{JsonSerializer.Serialize(_consumerSettings)}";
     }
     #endregion
   }

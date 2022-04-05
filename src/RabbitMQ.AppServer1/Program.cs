@@ -40,6 +40,14 @@ try
   // Add services to the container.
   builder.Services.AddSingleton<IConnectionProvider>(x => new ConnectionProvider(x.GetService<ILogger<ConnectionProvider>>(), rabbitSettings.HostName));
 
+  // First Service
+  builder.Services.AddSingleton<IHostedService, RabbitHostedService>(x => 
+    new RabbitHostedService(
+      x.GetService<ILogger<RabbitHostedService>>(),
+      x.GetService<IConnectionProvider>(),
+      rabbitSettings.Queues[RabbitSettings.MiscellaneousConsumer]));
+  
+  // Second Service
   builder.Services.AddSingleton<IHostedService, RabbitHostedService>(x => 
     new RabbitHostedService(
       x.GetService<ILogger<RabbitHostedService>>(),
