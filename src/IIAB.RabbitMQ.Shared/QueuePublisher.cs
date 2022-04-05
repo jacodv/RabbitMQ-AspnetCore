@@ -29,21 +29,37 @@ public sealed class QueuePublisher : IQueuePublisher, IDisposable
 
   public void Publish<T>(T message, string routingKey, IDictionary<string, object>? messageAttributes, int? timeToLive = null)
   {
-    Publish(new[] { message } as IEnumerable<T>, routingKey, messageAttributes, timeToLive);
+    Publish(new[] { message } as IList<T>, routingKey, messageAttributes, timeToLive);
   }
-  public void Publish<T>(IEnumerable<T> messages, string routingKey, IDictionary<string, object>? messageAttributes, int? timeToLive = null)
+  public void Publish<T>(IList<T> messages, string routingKey, IDictionary<string, object>? messageAttributes, int? timeToLive = null)
   {
-    foreach (var message in messages)
+    var enableTransaction = messages.Count>1;
+    try
     {
-      var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message));
-      var properties = _model.CreateBasicProperties();
-      properties.Persistent = true;
-      if (messageAttributes != null)
-        properties.Headers = messageAttributes;
-      if (timeToLive.HasValue)
-        properties.Expiration = timeToLive.Value.ToString();
+      if(enableTransaction)
+        _model.TxSelect();
+      
+      foreach (var message in messages)
+      {
+        var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message));
+        var properties = _model.CreateBasicProperties();
+        properties.Persistent = true;
+        if (messageAttributes != null)
+          properties.Headers = messageAttributes;
+        if (timeToLive.HasValue)
+          properties.Expiration = timeToLive.Value.ToString();
 
-      _model.BasicPublish(_rabbitClientSettings.ExchangeName, routingKey, properties, body);
+        _model.BasicPublish(_rabbitClientSettings.ExchangeName, routingKey, properties, body);
+      }
+      if(enableTransaction)
+        _model.TxCommit();
+    }
+    catch (Exception e)
+    {
+      _logger.LogError($"Failed to publish {messages?.Count()} - {e.Message}");
+      if(enableTransaction)
+        _model.TxRollback();
+      throw;
     }
   }
 

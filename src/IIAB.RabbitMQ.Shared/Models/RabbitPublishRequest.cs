@@ -25,6 +25,9 @@ namespace IIAB.RabbitMQ.Shared.Models
 
   public class RabbitConsumerSettings: RabbitClientSettings
   {
+    public const string BATCH_EXCHANGE = "exchange-batch-processing";
+    public const string MISC_ECHANGE = "misc-fan-out-exchange";
+    
     public string QueueName { get; set; } = null!;
     public string RouteKey { get; set; }= null!;
     public ushort PreFetchCount { get; set; } = 5;

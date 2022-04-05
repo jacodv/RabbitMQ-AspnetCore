@@ -16,12 +16,12 @@ namespace IIAB.RabbitMQ.Shared
     private readonly IModel _model;
     private bool _disposed;
     private readonly string _queueName;
+    private string _subscriberId = $"{Guid.NewGuid():N}";
 
     public QueueSubscriber(
         IConnectionProvider connectionProvider,
         ILogger logger,
-        RabbitConsumerSettings settings,
-        string consumerId)
+        RabbitConsumerSettings settings)
     {
       _connectionProvider = connectionProvider ?? throw new ArgumentNullException(nameof(connectionProvider));
       _logger = logger;
@@ -40,7 +40,7 @@ namespace IIAB.RabbitMQ.Shared
 
       _model.ExchangeDeclare(_settings.ExchangeName, _settings.ExchangeType, arguments: ttl);
 
-      _queueName = $"{_settings.QueueName}-{consumerId}";
+      _queueName = $"{_settings.QueueName}-{_subscriberId}";
       
       _model.QueueDeclare(_queueName,
           durable: true,
@@ -51,13 +51,13 @@ namespace IIAB.RabbitMQ.Shared
       _model.BasicQos(0, _settings.PreFetchCount, false);
     }
 
-    public void Subscribe<T>(Func<T, IDictionary<string, object>, bool> callback)
+    public void Subscribe<T>(Func<T, string, IDictionary<string, object>, bool> callback)
     {
       var consumer = new EventingBasicConsumer(_model);
       consumer.Received += (sender, e) =>
       {
         var messageObject = _getMessageAsInstance<T>(e);
-        bool success = callback.Invoke(messageObject, e.BasicProperties.Headers);
+        bool success = callback.Invoke(messageObject, _subscriberId, e.BasicProperties.Headers);
         if (success)
         {
           _model.BasicAck(e.DeliveryTag, true);
@@ -67,7 +67,7 @@ namespace IIAB.RabbitMQ.Shared
       _model.BasicConsume(_queueName, false, consumer);
     }
 
-    public void SubscribeAsync<T>(Func<T?, IDictionary<string, object>, Task<bool>> callback)
+    public void SubscribeAsync<T>(Func<T?, string, IDictionary<string, object>, Task<bool>> callback)
     {
       var consumer = new AsyncEventingBasicConsumer(_model);
       consumer.Received += async (sender, e) =>
@@ -76,7 +76,7 @@ namespace IIAB.RabbitMQ.Shared
         var message = Encoding.UTF8.GetString(body);
         var messageObject = JsonSerializer.Deserialize<T>(message);
 
-        bool success = await callback.Invoke(messageObject, e.BasicProperties.Headers);
+        bool success = await callback.Invoke(messageObject, _subscriberId, e.BasicProperties.Headers);
         if (success)
         {
           _model.BasicAck(e.DeliveryTag, true);
@@ -91,6 +91,8 @@ namespace IIAB.RabbitMQ.Shared
       Dispose(true);
       GC.SuppressFinalize(this);
     }
+
+    public string SubscriberId => _subscriberId;
 
     #region Private
 
@@ -113,7 +115,7 @@ namespace IIAB.RabbitMQ.Shared
 
     private void _model_CallbackException(object? sender, CallbackExceptionEventArgs e)
     {
-      _logger.LogWarning($"RabbitMQ model callback exception: {_queueName}\n{JsonSerializer.Serialize(e.Detail)}", e.Exception);
+      _logger.LogError($"RabbitMQ model callback exception: {_queueName}-{e.Exception?.Message}\n{JsonSerializer.Serialize(e.Detail)}", e.Exception);
     }
 
     private void _model_BasicRecoverOk(object? sender, EventArgs e)

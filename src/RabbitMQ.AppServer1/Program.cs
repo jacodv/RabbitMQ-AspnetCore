@@ -46,9 +46,9 @@ try
       x.GetService<ILogger<RabbitHostedService>>(),
       x.GetService<IConnectionProvider>(),
       rabbitSettings.Queues[RabbitSettings.MiscellaneousConsumer]));
-  
+
   // Second Service
-  builder.Services.AddSingleton<IHostedService, RabbitHostedService>(x => 
+  builder.Services.AddSingleton<IHostedService, RabbitHostedService>(x =>
     new RabbitHostedService(
       x.GetService<ILogger<RabbitHostedService>>(),
       x.GetService<IConnectionProvider>(),

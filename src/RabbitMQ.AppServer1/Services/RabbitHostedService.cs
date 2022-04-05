@@ -11,16 +11,17 @@ namespace RabbitMQ.AppServer1.Services
     private readonly IConnectionProvider? _connectionProvider;
     private readonly RabbitConsumerSettings _consumerSettings;
     private IQueueSubscriber _queueSubscriber;
-    private string _serviceId = Guid.NewGuid().ToString();
+    private readonly MiscellaneousQueueProcessor _miscProcessor;
 
     public RabbitHostedService(
       ILogger<RabbitHostedService>? logger, 
       IConnectionProvider? connectionProvider,
       RabbitConsumerSettings consumerSettings)
     {
-      _logger = logger;
+      _logger = logger ?? throw new ArgumentNullException(nameof(logger));
       _connectionProvider = connectionProvider;
       _consumerSettings = consumerSettings;
+      _miscProcessor = new MiscellaneousQueueProcessor(logger, _connectionProvider!);
     }
 
     #region Overrides of BackgroundService
@@ -30,8 +31,7 @@ namespace RabbitMQ.AppServer1.Services
       _queueSubscriber = new QueueSubscriber(
         _connectionProvider,
         _logger,
-        _consumerSettings,
-        ConnectionProvider.GetConnectionName(_serviceId));
+        _consumerSettings);
 
       _queueSubscriber.SubscribeAsync<QueueMessage<object>>(_handleMessage);
 
@@ -44,6 +44,7 @@ namespace RabbitMQ.AppServer1.Services
     {
       _logger?.LogInformation(_getLogLine("Stopping"));
       _queueSubscriber?.Dispose();
+      _miscProcessor.Dispose();
       return Task.CompletedTask;
     }
 
@@ -51,21 +52,23 @@ namespace RabbitMQ.AppServer1.Services
     {
       _logger?.LogInformation(_getLogLine("Disposing"));
       _queueSubscriber?.Dispose();
+      _miscProcessor?.Dispose();
     }
 
     #endregion
 
     #region Private
 
-    private Task<bool> _handleMessage(QueueMessage<object> message, IDictionary<string,object> headers)
+    private async Task<bool> _handleMessage(QueueMessage<object> message, string subscriberId, IDictionary<string,object> headers)
     {
-      _logger?.LogDebug($"Handling message [{_serviceId}] :\nHeaders:{JsonSerializer.Serialize(headers)} \nMessage:{JsonSerializer.Serialize(message)}");
-      return Task.FromResult(true);
+      // IGNORE Headers for now
+      await _miscProcessor.ProcessMessage(message, subscriberId);
+      return true;
     }
 
     private string _getLogLine(string action)
     {
-      return $"{action} {nameof(RabbitHostedService)}[{_serviceId}]:\n{JsonSerializer.Serialize(_consumerSettings)}";
+      return $"{action} {nameof(RabbitHostedService)}[{_queueSubscriber.SubscriberId}]:\n{JsonSerializer.Serialize(_consumerSettings)}";
     }
     #endregion
   }
