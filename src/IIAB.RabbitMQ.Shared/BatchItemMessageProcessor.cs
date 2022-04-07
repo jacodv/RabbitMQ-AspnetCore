@@ -72,10 +72,12 @@ public class BatchItemMessageProcessor : IDisposable
   private async Task<bool> _processBatchItem(QueueMessage<object> message, BatchMessage batchMessage)
   {
     var stage = (BatchStage)batchMessage.ItemStage;
-    
+
+    // Simulate some work done
+    await Task.Delay(100);
+
     await _batchItemRepository.UpdateById(message.Id, Builders<BatchItem>.Update.Set(x => x.Processed, true));
     await _batchRepository.UpdateById(message.LinkedId, Builders<Batch>.Update.Inc(x => x.Stages[stage.ToString()], 1));
-    await Task.Delay(100);
     
     _logger.LogDebug($"Processed BatchItem: {message.Id}|{JsonSerializer.Serialize(message.Body)} of {message.LinkedId} - {_getSubscriber()}");
     

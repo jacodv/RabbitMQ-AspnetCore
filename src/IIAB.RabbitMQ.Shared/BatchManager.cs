@@ -19,7 +19,7 @@ public class BatchManager: IBatchManager, IDisposable
   private readonly IBatchMessageSender _batchMessageSender;
   private readonly string _applicationName;
   private readonly string _subscriberTag;
-  private readonly ConcurrentDictionary<string, BatchItemMessageProcessor> _batchMessageProcessors;
+  private readonly ConcurrentDictionary<string, List<BatchItemMessageProcessor>> _batchMessageProcessors;
 
   public BatchManager(
     IConnectionProvider connectionProvider,
@@ -151,8 +151,20 @@ public class BatchManager: IBatchManager, IDisposable
       batchId,
       _applicationName,
       _subscriberTag);
-
-    _batchMessageProcessors.TryAdd(batchId, itemMessageProcessor);
+    var itemMessageProcessor2 = new BatchItemMessageProcessor(
+      _connectionProvider,
+      _logger,
+      _batchRepository,
+      _itemRepository,
+      _batchMessageSender,
+      batchId,
+      _applicationName,
+      "002");
+    _batchMessageProcessors.TryAdd(batchId, new List<BatchItemMessageProcessor>()
+    {
+      itemMessageProcessor,
+      itemMessageProcessor2
+    });
   }
   private async Task _handleCompleteMessage(QueueMessage<object> message)
   {
@@ -174,8 +186,14 @@ public class BatchManager: IBatchManager, IDisposable
   private void _removeBatchProcessingSubscriber(string batchId)
   {
     _logger.LogInformation($"Removing {nameof(BatchItemMessageProcessor)} for {batchId}");
-    _batchMessageProcessors.TryRemove(batchId, out var processorToRemove);
-    processorToRemove?.Dispose();
+    _batchMessageProcessors.TryRemove(batchId, out var processorsToRemove);
+    if (processorsToRemove?.Any()==true)
+    {
+      foreach (var processorToRemove in processorsToRemove)
+      {
+        processorToRemove?.Dispose();  
+      }
+    }
   }
   #endregion
 
@@ -187,10 +205,9 @@ public class BatchManager: IBatchManager, IDisposable
       return;
     
     var keysToRemove = _batchMessageProcessors.Keys;
-    foreach (var key in keysToRemove)
+    foreach (var batchId in keysToRemove)
     {
-      _batchMessageProcessors.TryRemove(key, out var itemToRemove);
-      itemToRemove?.Dispose();
+      _removeBatchProcessingSubscriber(batchId);
     }
   }
 
