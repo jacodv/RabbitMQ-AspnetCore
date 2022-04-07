@@ -1,4 +1,5 @@
-﻿using IIAB.RabbitMQ.Shared.Interface;
+﻿using System.Text.Json;
+using IIAB.RabbitMQ.Shared.Interface;
 using IIAB.RabbitMQ.Shared.Models;
 using IIAB.RabbitMQ.Shared.Settings;
 using Microsoft.Extensions.Logging;
@@ -15,6 +16,7 @@ public class BatchItemMessageProcessor : IDisposable
   private readonly ILogger _logger;
   private readonly IRepository<Batch> _batchRepository;
   private readonly IRepository<BatchItem> _batchItemRepository;
+  private readonly IBatchMessageSender _batchMessageSender;
   private readonly string _applicationName;
   private readonly string _subscriberTag;
   private readonly QueueSubscriber _queueSubscriber;
@@ -24,6 +26,7 @@ public class BatchItemMessageProcessor : IDisposable
     ILogger logger,
     IRepository<Batch> batchRepository,
     IRepository<BatchItem> batchItemRepository,
+    IBatchMessageSender batchMessageSender,
     string batchId,
     string applicationName,
     string subscriberTag)
@@ -32,6 +35,7 @@ public class BatchItemMessageProcessor : IDisposable
     _logger = logger;
     _batchRepository = batchRepository;
     _batchItemRepository = batchItemRepository;
+    _batchMessageSender = batchMessageSender;
     _applicationName = applicationName;
     _subscriberTag = subscriberTag;
     var settings = BatchSettings
@@ -70,12 +74,10 @@ public class BatchItemMessageProcessor : IDisposable
     var stage = (BatchStage)batchMessage.ItemStage;
     
     await _batchItemRepository.UpdateById(message.Id, Builders<BatchItem>.Update.Set(x => x.Processed, true));
-    
     await _batchRepository.UpdateById(message.LinkedId, Builders<Batch>.Update.Inc(x => x.Stages[stage.ToString()], 1));
-    
     await Task.Delay(100);
     
-    _logger.LogDebug($"Processed BatchItem: {message.Id} of {message.LinkedId} - {_getSubscriber()}");
+    _logger.LogDebug($"Processed BatchItem: {message.Id}|{JsonSerializer.Serialize(message.Body)} of {message.LinkedId} - {_getSubscriber()}");
     
     return true;
   }
@@ -99,23 +101,8 @@ public class BatchItemMessageProcessor : IDisposable
       await Task.Delay(1000);
       batch = await _batchRepository.FindByIdAsync(message.LinkedId);
     }
-    
-    using var queuePublisher = new QueuePublisher(
-      _connectionProvider,
-      _logger,
-      BatchSettings.ForBatchActions().AsRabbitClientSettings());
 
-    var completedMessage = new QueueMessage<string>()
-    {
-      Id = batch.Id,
-      BodyType = nameof(String),
-      Body = BatchRouteSettings.CompletedAction
-    };
-
-    queuePublisher.Publish(
-      completedMessage, 
-      BatchRouteSettings.CompletedAction,
-      null);
+    _batchMessageSender.SendBatchActionMessage(batch.Id, BatchRouteSettings.CompletedAction);
 
     _logger.LogInformation($"Sent Completed processing message for {message.LinkedId} - {_getSubscriber()}");
 

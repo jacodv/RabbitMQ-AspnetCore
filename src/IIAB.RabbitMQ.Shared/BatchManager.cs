@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Text.Json;
 using IIAB.RabbitMQ.Shared.Interface;
 using IIAB.RabbitMQ.Shared.Models;
 using IIAB.RabbitMQ.Shared.Settings;
@@ -15,6 +16,7 @@ public class BatchManager: IBatchManager, IDisposable
   private readonly IConnectionProvider _connectionProvider;
   private readonly IRepository<Batch> _batchRepository;
   private readonly IRepository<BatchItem> _itemRepository;
+  private readonly IBatchMessageSender _batchMessageSender;
   private readonly string _applicationName;
   private readonly string _subscriberTag;
   private readonly ConcurrentDictionary<string, BatchItemMessageProcessor> _batchMessageProcessors;
@@ -24,6 +26,7 @@ public class BatchManager: IBatchManager, IDisposable
     ILogger<BatchManager> logger, 
     IRepository<Batch> batchRepository,
     IRepository<BatchItem> itemRepository,
+    IBatchMessageSender batchMessageSender,
     string applicationName,
     string subscriberTag)
   {
@@ -31,6 +34,7 @@ public class BatchManager: IBatchManager, IDisposable
     _connectionProvider = connectionProvider;
     _batchRepository = batchRepository;
     _itemRepository = itemRepository;
+    _batchMessageSender = batchMessageSender;
     _applicationName = applicationName;
     _subscriberTag = subscriberTag;
 
@@ -61,7 +65,7 @@ public class BatchManager: IBatchManager, IDisposable
 
     await _itemRepository.InsertManyAsync(itemsToInsert);
 
-    _createProcessStartMessage(batch);
+    _batchMessageSender.SendBatchActionMessage(batch.Id, BatchRouteSettings.StartAction);
 
     return batch;
   }
@@ -69,13 +73,6 @@ public class BatchManager: IBatchManager, IDisposable
   public void PublishStageMessages(string batchId, BatchStage stage)
   {
     _logger.LogDebug($"Creating batch processing messages for: {batchId}");
-
-    var settings = BatchSettings.ForBatchProcessing(batchId).AsRabbitClientSettings();
-
-    using var queuePublisher = new QueuePublisher(
-      _connectionProvider,
-      _logger,
-      settings);
 
     var batchItems = _itemRepository.AsQueryable()
       .Where(x => x.Batch.Id == batchId)
@@ -107,10 +104,7 @@ public class BatchManager: IBatchManager, IDisposable
 
     _logger.LogInformation($"Publishing {batchItems.Count} message to the processing queue for: {batchId}");
 
-    queuePublisher.Publish(
-      (IList<QueueMessage<BatchMessage>>)batchItems, 
-      string.Format(BatchRouteSettings.StageProcessing, batchId, stage),
-      null);
+    _batchMessageSender.SendBatchItemMessages(batchItems, batchId, stage);
   }
 
   public async Task<bool> ProcessBatchAction(QueueMessage<object> message)
@@ -133,7 +127,7 @@ public class BatchManager: IBatchManager, IDisposable
         PublishStageMessages(message.Id, firstStage);
         break;
       case BatchRouteSettings.CompletedAction:
-        _removeBatchProcessingSubscriber(message.Id);
+        await _handleCompleteMessage(message);
         break;
       default:
         throw new ArgumentOutOfRangeException(nameof(message), $"Unsupported action: {message.Body}");
@@ -142,35 +136,7 @@ public class BatchManager: IBatchManager, IDisposable
     return true;
   }
 
-  private void _removeBatchProcessingSubscriber(string batchId)
-  {
-    _logger.LogInformation($"Removing {nameof(BatchItemMessageProcessor)} for {batchId}");
-    _batchMessageProcessors.TryRemove(batchId, out var processorToRemove);
-    processorToRemove?.Dispose();
-  }
-
-
   #region Private
-  private void _createProcessStartMessage(Batch batch)
-  {
-   
-    using var queuePublisher = new QueuePublisher(
-      _connectionProvider,
-      _logger,
-      BatchSettings.ForBatchActions().AsRabbitClientSettings());
-
-    var message = new QueueMessage<string>()
-    {
-      Id = batch.Id,
-      BodyType = nameof(String),
-      Body = BatchRouteSettings.StartAction
-    };
-
-    queuePublisher.Publish(
-      message, 
-      BatchRouteSettings.StartAction,
-      null);
-  }
   private void _createBatchProcessingSubscriber(string batchId)
   {
     if (_batchMessageProcessors.ContainsKey(batchId))
@@ -181,11 +147,35 @@ public class BatchManager: IBatchManager, IDisposable
       _logger,
       _batchRepository,
       _itemRepository,
+      _batchMessageSender,
       batchId,
       _applicationName,
       _subscriberTag);
 
     _batchMessageProcessors.TryAdd(batchId, itemMessageProcessor);
+  }
+  private async Task _handleCompleteMessage(QueueMessage<object> message)
+  {
+    var batch = await _batchRepository.FindByIdAsync(message.Id);
+
+    _logger.LogDebug($"Complete message for batch: {message.Id}\n{JsonSerializer.Serialize(batch)}");
+
+    if (batch.IsCompleted())
+    {
+      _removeBatchProcessingSubscriber(message.Id);
+      return;
+    }
+
+    var nextStage = batch.GetNextStage();
+    _logger.LogDebug($"Starting next stage {nextStage} for: {message.Id}");
+
+    PublishStageMessages(message.Id, nextStage);
+  }
+  private void _removeBatchProcessingSubscriber(string batchId)
+  {
+    _logger.LogInformation($"Removing {nameof(BatchItemMessageProcessor)} for {batchId}");
+    _batchMessageProcessors.TryRemove(batchId, out var processorToRemove);
+    processorToRemove?.Dispose();
   }
   #endregion
 

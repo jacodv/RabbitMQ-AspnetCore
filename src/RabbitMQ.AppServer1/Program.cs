@@ -57,6 +57,7 @@ try
   builder.Configuration.GetSection(nameof(RabbitSettings)).Bind(rabbitSettings);
   // Add services to the container.
   builder.Services.AddSingleton<IConnectionProvider>(x => new ConnectionProvider(x.GetService<ILogger<ConnectionProvider>>(), rabbitSettings.HostName));
+  builder.Services.AddSingleton<IBatchMessageSender, BatchMessageSender>();
 
   //// First Service
   //builder.Services.AddSingleton<IHostedService, RabbitHostedService>(x => 
@@ -82,6 +83,7 @@ try
     x.GetService<ILogger<BatchManager>>()!,
     x.GetService<IRepository<Batch>>()!,
     x.GetService<IRepository<BatchItem>>()!,
+    x.GetService<IBatchMessageSender>()!,
     "AppServer001",
     "001"));
 

@@ -27,6 +27,26 @@ public class Batch : Document
   [BsonElement("stageFlags")]
   [JsonPropertyName("stageFlags")]
   public BatchStage StageFlags { get; set; }
+
+  public bool IsCompleted()
+  {
+    if (Stages.Values.All(x => x == ItemCount))
+      return true;
+    if (Stages.Values.Any(x => x > ItemCount))
+      throw new InvalidOperationException($"A Stage has processed more that expected: {ItemCount}");
+    return false;
+  }
+
+  public BatchStage GetNextStage()
+  {
+    BatchStage? firstStage = (BatchStage)Stages
+      .Where(x => x.Value == 0)
+      .Select(x => Enum.Parse<BatchStage>(x.Key))
+      .FirstOrDefault();
+    if (!firstStage.HasValue)
+      throw new InvalidOperationException("No empty stage found");
+    return firstStage.Value;
+  }
 }
 
 public class BatchValidator : AbstractValidator<Batch>
