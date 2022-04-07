@@ -2,8 +2,6 @@ using System.Diagnostics;
 using FluentValidation;
 using IIAB.RabbitMQ.Shared;
 using IIAB.RabbitMQ.Shared.Interface;
-using IIAB.RabbitMQ.Shared.Models;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using RabbitMQ.AppServer1.Services;
 using RabbitMQ.AppServer1.Settings;

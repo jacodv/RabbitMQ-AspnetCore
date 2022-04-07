@@ -1,9 +1,8 @@
-﻿using IIAB.RabbitMQ.Shared.Models;
-using RabbitMQ.Client;
+﻿using RabbitMQ.Client;
 
 namespace IIAB.RabbitMQ.Shared.Interface;
 
-public interface IQueueSubscriber : IDisposable
+public interface IQueueSubscriber: IDisposable
 {
   void Subscribe<T>(Func<T, string, IDictionary<string, object>, bool> callback);
   void SubscribeAsync<T>(Func<T?, string, IDictionary<string, object>, Task<bool>> callback);

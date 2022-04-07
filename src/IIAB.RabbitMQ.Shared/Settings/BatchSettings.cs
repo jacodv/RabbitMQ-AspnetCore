@@ -3,7 +3,7 @@ using RabbitMQ.Client;
 
 namespace IIAB.RabbitMQ.Shared.Settings
 {
-  public class BatchSettings
+  public static class BatchSettings
   {
     private const string BatchActionsExchange = "exch-batch-actions";
     private const string BatchActionsQueueName = "queue-batch-actions";
@@ -49,8 +49,8 @@ namespace IIAB.RabbitMQ.Shared.Settings
     public const string AllActions = "batch-action.*";
     public const string StartAction = "batch-action-start";
     public const string CompletedAction = "batch-action-complete";
-    public const string AllStageProcessing = "batch-processing-{0}";
-    public const string StageProcessing = "batch.processing-{0}";
+    public const string StageProcessing = "batch-processing-{0}.{1}";
+    public const string AllStageProcessing = "batch-processing-{0}.*";
   }
 
   public static class SettingExtensions

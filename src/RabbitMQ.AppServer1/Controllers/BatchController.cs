@@ -1,5 +1,4 @@
 ﻿using IIAB.RabbitMQ.Shared.Interface;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using RabbitMQ.Models;
 

@@ -8,15 +8,13 @@ using RabbitMQ.Client.Events;
 
 namespace IIAB.RabbitMQ.Shared
 {
-  public class QueueSubscriber : IQueueSubscriber
+  public sealed class QueueSubscriber : QueueBase, IQueueSubscriber
   {
-    private readonly IConnectionProvider? _connectionProvider;
     private readonly ILogger _logger;
-    private readonly RabbitConsumerSettings _settings;
     private readonly IModel _model;
     private bool _disposed;
     private readonly string _queueName;
-    private string _subscriberId;
+    private readonly string _subscriberId;
 
     public QueueSubscriber(
         IConnectionProvider connectionProvider,
@@ -25,37 +23,24 @@ namespace IIAB.RabbitMQ.Shared
         string applicationName,
         string tag)
     {
-      _connectionProvider = connectionProvider ?? throw new ArgumentNullException(nameof(connectionProvider));
       _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-      _settings = settings;
-      _model = _connectionProvider!.GetConsumerConnection().CreateModel();
+      _model = connectionProvider!.GetConsumerConnection().CreateModel();
       _model.BasicRecoverOk += _model_BasicRecoverOk;
       _model.CallbackException += _model_CallbackException;
       _model.ModelShutdown += _model_ModelShutdown;
       _model.FlowControl += _model_FlowControl;
 
-      var ttl = new Dictionary<string, object>
-        {
-          {"x-dead-letter-exchange", "exch-deadletter"},
-          {"x-message-ttl", _settings.TimeToLive ?? TimeSpan.FromDays(1).Milliseconds}
-        };
-
-      _model.ExchangeDeclare(_settings.ExchangeName, _settings.ExchangeType, arguments: ttl);
+      ConfigureExchange(_model, settings);
 
       var uniqueId = Guid.NewGuid().ToString("N");
       _subscriberId = $"{applicationName}-{tag}-{uniqueId}";
-      _queueName = _settings.ExchangeType==ExchangeType.Fanout? 
-        $"{_settings.QueueName}-{uniqueId}":
-        _settings.QueueName;
-      
-      _model.QueueDeclare(_queueName,
-          durable: true,
-          exclusive: false,
-          autoDelete: true,
-          arguments: ttl);
-      _model.QueueBind(_queueName, _settings.ExchangeName, _settings.RouteKey);
-      _model.BasicQos(0, _settings.PreFetchCount, false);
-      _logger.LogDebug($"Started Queue Subscriber:{_subscriberId}\n{JsonSerializer.Serialize(_settings)}");
+      _queueName = settings.ExchangeType==ExchangeType.Fanout? 
+        $"{settings.QueueName}-{uniqueId}":
+        settings.QueueName;
+
+      ConfigureQueue(_model, settings, _queueName);
+
+      _logger.LogDebug($"Started Queue Subscriber:{_subscriberId}\n{JsonSerializer.Serialize(settings)}");
     }
 
     public void Subscribe<T>(Func<T, string, IDictionary<string, object>, bool> callback)
@@ -93,7 +78,7 @@ namespace IIAB.RabbitMQ.Shared
       _model.BasicConsume(_queueName, false, consumer);
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
       Dispose(true);
       GC.SuppressFinalize(this);
@@ -140,7 +125,7 @@ namespace IIAB.RabbitMQ.Shared
     #endregion
 
     // Protected implementation of Dispose pattern.
-    protected virtual void Dispose(bool disposing)
+    private void Dispose(bool disposing)
     {
       if (_disposed)
         return;

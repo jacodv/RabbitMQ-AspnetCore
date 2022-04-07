@@ -1,5 +1,4 @@
-﻿using System.Text.Json;
-using IIAB.RabbitMQ.Shared;
+﻿using IIAB.RabbitMQ.Shared;
 using IIAB.RabbitMQ.Shared.Interface;
 using IIAB.RabbitMQ.Shared.Models;
 using IIAB.RabbitMQ.Shared.Settings;

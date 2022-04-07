@@ -1,5 +1,4 @@
-﻿using System.Runtime.InteropServices.ObjectiveC;
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using IIAB.RabbitMQ.Shared.Interface;
 using IIAB.RabbitMQ.Shared.Models;
@@ -8,7 +7,7 @@ using RabbitMQ.Client;
 
 namespace IIAB.RabbitMQ.Shared;
 
-public sealed class QueuePublisher : IQueuePublisher, IDisposable
+public sealed class QueuePublisher : QueueBase, IQueuePublisher
 {
   private readonly ILogger _logger;
   private readonly RabbitClientSettings _rabbitClientSettings;
@@ -20,12 +19,8 @@ public sealed class QueuePublisher : IQueuePublisher, IDisposable
     _logger = logger;
     _rabbitClientSettings = rabbitClientSettings;
     _model = connectionProvider.GetProducerConnection().CreateModel();
-    var ttl = new Dictionary<string, object>
-      {
-        {"x-dead-letter-exchange", "exch-deadletter"},
-        {"x-message-ttl", rabbitClientSettings.TimeToLive ?? TimeSpan.FromDays(1).Milliseconds }
-      };
-    _model.ExchangeDeclare(rabbitClientSettings.ExchangeName, rabbitClientSettings.ExchangeType, arguments: ttl);
+
+    ConfigureExchange(_model, rabbitClientSettings);
   }
 
   public void Publish<T>(T message, string routingKey, IDictionary<string, object>? messageAttributes, int? timeToLive = null)
@@ -64,7 +59,7 @@ public sealed class QueuePublisher : IQueuePublisher, IDisposable
     }
   }
 
-  public void Dispose()
+  public override void Dispose()
   {
     Dispose(true);
     GC.SuppressFinalize(this);

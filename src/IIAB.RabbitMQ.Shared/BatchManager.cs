@@ -1,11 +1,8 @@
 ﻿using System.Collections.Concurrent;
-using System.Security.Cryptography.X509Certificates;
-using EasyNetQ;
 using IIAB.RabbitMQ.Shared.Interface;
 using IIAB.RabbitMQ.Shared.Models;
 using IIAB.RabbitMQ.Shared.Settings;
 using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
 using RabbitMQ.Models;
 using RabbitMQ.Models.Enums;
 using UtilityData.Data.Interfaces;
