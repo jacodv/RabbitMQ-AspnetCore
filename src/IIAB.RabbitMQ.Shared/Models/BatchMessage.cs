@@ -1,4 +1,6 @@
-﻿namespace IIAB.RabbitMQ.Shared.Models
+﻿using RabbitMQ.Models;
+
+namespace IIAB.RabbitMQ.Shared.Models
 {
   public class BatchMessage
   {
@@ -6,5 +8,6 @@
     public bool IsLast { get; set; }
     public int ItemStage { get; set; } = 1;
     public int ExpectedCount { get; set; }
+    public Reference? Reference { get; set; }
   }
 }

@@ -1,11 +1,11 @@
 ﻿using System.Collections.Concurrent;
 using System.Text.Json;
-using IIAB.RabbitMQ.Shared;
 using IIAB.RabbitMQ.Shared.Interface;
 using IIAB.RabbitMQ.Shared.Models;
+using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 
-namespace RabbitMQ.AppServer1.Services
+namespace IIAB.RabbitMQ.Shared
 {
   public class MiscellaneousQueueProcessor : IQueueProcessor, IDisposable
   {
@@ -109,14 +109,18 @@ namespace RabbitMQ.AppServer1.Services
       var queueSubscriber1 = new QueueSubscriber(
         _connectionProvider,
         _logger,
-        consumerSettings);
+        consumerSettings,
+        "AppServer",
+        "001");
       queueSubscriber1.SubscribeAsync<QueueMessage<BatchMessage>>(_processItemMessage!);
       _batchProcessors.TryAdd(_getBatchServiceId(message.LinkedId, queueSubscriber1.SubscriberId), queueSubscriber1);
 
       var queueSubscriber2 = new QueueSubscriber(
         _connectionProvider,
         _logger,
-        consumerSettings);
+        consumerSettings,
+        "AppServer",
+        "002");
       queueSubscriber2.SubscribeAsync<QueueMessage<BatchMessage>>(_processItemMessage!);
       _batchProcessors.TryAdd(_getBatchServiceId(message.LinkedId, queueSubscriber2.SubscriberId), queueSubscriber2);
 
@@ -141,7 +145,7 @@ namespace RabbitMQ.AppServer1.Services
 
         var messages = Enumerable.Range(1, batchMessage.ExpectedCount).Select(itemNo => new QueueMessage<BatchMessage>()
         {
-          Id = Guid.NewGuid().ToString(),
+          Id = $"{itemNo}|{Guid.NewGuid()}",
           LinkedId = message.LinkedId,
           BodyType = QueueMessage<object>.BatchMessage,
           Body = new BatchMessage()
@@ -154,7 +158,7 @@ namespace RabbitMQ.AppServer1.Services
         // Add the last message
         var lastMessage = new QueueMessage<BatchMessage>()
         {
-          Id="LastMessage",
+          Id = "LastMessage",
           LinkedId = message.LinkedId,
           BodyType = QueueMessage<object>.BatchMessage,
           Body = new BatchMessage()
@@ -171,7 +175,7 @@ namespace RabbitMQ.AppServer1.Services
           $"batch.{message.LinkedId}",
           null);
 
-        _batchBatchCreated.TryAdd(message.LinkedId,true);
+        _batchBatchCreated.TryAdd(message.LinkedId, true);
         _logger.LogInformation($"Created [{batchMessage.ExpectedCount} for batch:{message.LinkedId} by {serviceId}");
       }
       finally
@@ -273,10 +277,5 @@ namespace RabbitMQ.AppServer1.Services
 
     }
     #endregion
-  }
-
-  public interface IQueueProcessor
-  {
-    Task ProcessMessage(QueueMessage<object> message, string serviceId);
   }
 }

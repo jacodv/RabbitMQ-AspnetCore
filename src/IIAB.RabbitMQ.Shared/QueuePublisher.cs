@@ -22,6 +22,7 @@ public sealed class QueuePublisher : IQueuePublisher, IDisposable
     _model = connectionProvider.GetProducerConnection().CreateModel();
     var ttl = new Dictionary<string, object>
       {
+        {"x-dead-letter-exchange", "exch-deadletter"},
         {"x-message-ttl", rabbitClientSettings.TimeToLive ?? TimeSpan.FromDays(1).Milliseconds }
       };
     _model.ExchangeDeclare(rabbitClientSettings.ExchangeName, rabbitClientSettings.ExchangeType, arguments: ttl);

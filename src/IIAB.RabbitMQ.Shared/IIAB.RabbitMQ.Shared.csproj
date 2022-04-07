@@ -13,7 +13,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Interface\" />
+    <ProjectReference Include="..\RabbitMQ.Data\UtilityData.Data.csproj" />
+    <ProjectReference Include="..\RabbitMQ.Models\RabbitMQ.Models.csproj" />
   </ItemGroup>
 
 </Project>

@@ -16,3 +16,4 @@
 /src/RabbitMQ.AppServer1/obj
 /src/RabbitMQ.Windows.Client/bin/Debug/net6.0-windows
 /src/RabbitMQ.Windows.Client/obj
+/src/RabbitMQ.Mongo

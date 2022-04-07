@@ -1,42 +1,46 @@
-﻿using IIAB.RabbitMQ.Shared;
+﻿using System.Text.Json;
+using IIAB.RabbitMQ.Shared;
 using IIAB.RabbitMQ.Shared.Interface;
 using IIAB.RabbitMQ.Shared.Models;
+using IIAB.RabbitMQ.Shared.Settings;
 
 namespace RabbitMQ.AppServer1.Services
 {
-  public class RabbitHostedService : IHostedService,IDisposable
+  public class BatchActionHostedService: IHostedService, IDisposable
   {
     private readonly ILogger<RabbitHostedService>? _logger;
     private readonly IConnectionProvider? _connectionProvider;
-    private readonly RabbitConsumerSettings _consumerSettings;
+    private readonly IBatchManager _batchManager;
     private readonly string _applicationName;
     private readonly string _tag;
     private IQueueSubscriber? _queueSubscriber;
-    private readonly MiscellaneousQueueProcessor _miscProcessor;
 
-    public RabbitHostedService(
+    public BatchActionHostedService(
       ILogger<RabbitHostedService>? logger, 
       IConnectionProvider? connectionProvider,
-      RabbitConsumerSettings consumerSettings,
+      IBatchManager batchManager,
       string applicationName,
       string tag)
     {
       _logger = logger ?? throw new ArgumentNullException(nameof(logger));
       _connectionProvider = connectionProvider;
-      _consumerSettings = consumerSettings;
+      _batchManager = batchManager;
       _applicationName = applicationName;
       _tag = tag;
-      _miscProcessor = new MiscellaneousQueueProcessor(logger, _connectionProvider!);
     }
 
-    #region Overrides of BackgroundService
+    #region Implementation of IHostedService
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
+      var settings = BatchSettings
+        .ForBatchActions()
+        .AsRabbitConsumerSettings(BatchRouteSettings.AllActions);
+
       _queueSubscriber = new QueueSubscriber(
-        _connectionProvider,
-        _logger,
-        _consumerSettings,
+        _connectionProvider!,
+        _logger!,
+        settings,
         _applicationName,
         _tag);
 
@@ -51,7 +55,6 @@ namespace RabbitMQ.AppServer1.Services
     {
       _logger?.LogInformation(_getLogLine("Stopping"));
       _queueSubscriber?.Dispose();
-      _miscProcessor.Dispose();
       return Task.CompletedTask;
     }
 
@@ -59,20 +62,15 @@ namespace RabbitMQ.AppServer1.Services
     {
       _logger?.LogInformation(_getLogLine("Disposing"));
       _queueSubscriber?.Dispose();
-      _miscProcessor?.Dispose();
     }
-
     #endregion
 
     #region Private
-
     private async Task<bool> _handleMessage(QueueMessage<object> message, string subscriberId, IDictionary<string,object> headers)
     {
       // IGNORE Headers for now
-      await _miscProcessor.ProcessMessage(message, subscriberId);
-      return true;
+      return await _batchManager.ProcessBatchAction(message);
     }
-
     private string _getLogLine(string action)
     {
       return $"{action} {nameof(RabbitHostedService)}[{_queueSubscriber?.SubscriberId}]";

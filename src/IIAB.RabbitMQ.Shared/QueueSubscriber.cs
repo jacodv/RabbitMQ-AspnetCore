@@ -16,15 +16,17 @@ namespace IIAB.RabbitMQ.Shared
     private readonly IModel _model;
     private bool _disposed;
     private readonly string _queueName;
-    private string _subscriberId = $"{Guid.NewGuid():N}";
+    private string _subscriberId;
 
     public QueueSubscriber(
         IConnectionProvider connectionProvider,
         ILogger logger,
-        RabbitConsumerSettings settings)
+        RabbitConsumerSettings settings,
+        string applicationName,
+        string tag)
     {
       _connectionProvider = connectionProvider ?? throw new ArgumentNullException(nameof(connectionProvider));
-      _logger = logger;
+      _logger = logger ?? throw new ArgumentNullException(nameof(logger));
       _settings = settings;
       _model = _connectionProvider!.GetConsumerConnection().CreateModel();
       _model.BasicRecoverOk += _model_BasicRecoverOk;
@@ -32,23 +34,28 @@ namespace IIAB.RabbitMQ.Shared
       _model.ModelShutdown += _model_ModelShutdown;
       _model.FlowControl += _model_FlowControl;
 
-
       var ttl = new Dictionary<string, object>
         {
+          {"x-dead-letter-exchange", "exch-deadletter"},
           {"x-message-ttl", _settings.TimeToLive ?? TimeSpan.FromDays(1).Milliseconds}
         };
 
       _model.ExchangeDeclare(_settings.ExchangeName, _settings.ExchangeType, arguments: ttl);
 
-      _queueName = $"{_settings.QueueName}-{_subscriberId}";
+      var uniqueId = Guid.NewGuid().ToString("N");
+      _subscriberId = $"{applicationName}-{tag}-{uniqueId}";
+      _queueName = _settings.ExchangeType==ExchangeType.Fanout? 
+        $"{_settings.QueueName}-{uniqueId}":
+        _settings.QueueName;
       
       _model.QueueDeclare(_queueName,
           durable: true,
           exclusive: false,
           autoDelete: true,
-          arguments: null);
+          arguments: ttl);
       _model.QueueBind(_queueName, _settings.ExchangeName, _settings.RouteKey);
       _model.BasicQos(0, _settings.PreFetchCount, false);
+      _logger.LogDebug($"Started Queue Subscriber:{_subscriberId}\n{JsonSerializer.Serialize(_settings)}");
     }
 
     public void Subscribe<T>(Func<T, string, IDictionary<string, object>, bool> callback)
@@ -57,7 +64,7 @@ namespace IIAB.RabbitMQ.Shared
       consumer.Received += (sender, e) =>
       {
         var messageObject = _getMessageAsInstance<T>(e);
-        bool success = callback.Invoke(messageObject, _subscriberId, e.BasicProperties.Headers);
+        var success = callback.Invoke(messageObject!, _subscriberId, e.BasicProperties.Headers);
         if (success)
         {
           _model.BasicAck(e.DeliveryTag, true);
@@ -76,7 +83,7 @@ namespace IIAB.RabbitMQ.Shared
         var message = Encoding.UTF8.GetString(body);
         var messageObject = JsonSerializer.Deserialize<T>(message);
 
-        bool success = await callback.Invoke(messageObject, _subscriberId, e.BasicProperties.Headers);
+        var success = await callback.Invoke(messageObject, _subscriberId, e.BasicProperties.Headers);
         if (success)
         {
           _model.BasicAck(e.DeliveryTag, true);
@@ -115,7 +122,14 @@ namespace IIAB.RabbitMQ.Shared
 
     private void _model_CallbackException(object? sender, CallbackExceptionEventArgs e)
     {
-      _logger.LogError($"RabbitMQ model callback exception: {_queueName}-{e.Exception?.Message}\n{JsonSerializer.Serialize(e.Detail)}", e.Exception);
+      var detail = $"Detail:{e.Detail.Count}";
+      try
+      {
+        detail = JsonSerializer.Serialize(e.Detail);
+      }
+      catch{}
+
+      _logger.LogError($"RabbitMQ model callback exception: {_queueName}-{e.Exception?.Message}\n{detail}", e.Exception);
     }
 
     private void _model_BasicRecoverOk(object? sender, EventArgs e)
