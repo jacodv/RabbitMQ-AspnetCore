@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="EasyNetQ" Version="6.3.1" />
+    <PackageReference Include="HotChocolate.Subscriptions" Version="12.5.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0" />
     <PackageReference Include="RabbitMQ.Client" Version="6.2.4" />
   </ItemGroup>

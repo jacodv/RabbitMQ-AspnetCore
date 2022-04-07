@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Text.Json;
+using HotChocolate.Subscriptions;
 using IIAB.RabbitMQ.Shared.Interface;
 using IIAB.RabbitMQ.Shared.Models;
 using IIAB.RabbitMQ.Shared.Settings;
@@ -17,6 +18,7 @@ public class BatchManager: IBatchManager, IDisposable
   private readonly IRepository<Batch> _batchRepository;
   private readonly IRepository<BatchItem> _itemRepository;
   private readonly IBatchMessageSender _batchMessageSender;
+  private readonly ITopicEventSender _eventSender;
   private readonly string _applicationName;
   private readonly string _subscriberTag;
   private readonly ConcurrentDictionary<string, List<BatchItemMessageProcessor>> _batchMessageProcessors;
@@ -27,6 +29,7 @@ public class BatchManager: IBatchManager, IDisposable
     IRepository<Batch> batchRepository,
     IRepository<BatchItem> itemRepository,
     IBatchMessageSender batchMessageSender,
+    ITopicEventSender eventSender,
     string applicationName,
     string subscriberTag)
   {
@@ -35,6 +38,7 @@ public class BatchManager: IBatchManager, IDisposable
     _batchRepository = batchRepository;
     _itemRepository = itemRepository;
     _batchMessageSender = batchMessageSender;
+    _eventSender = eventSender;
     _applicationName = applicationName;
     _subscriberTag = subscriberTag;
 
@@ -133,6 +137,8 @@ public class BatchManager: IBatchManager, IDisposable
         throw new ArgumentOutOfRangeException(nameof(message), $"Unsupported action: {message.Body}");
     }
 
+    await _eventSender.SendAsync("OnRecentBatches", message.Id);
+
     return true;
   }
 
@@ -148,6 +154,7 @@ public class BatchManager: IBatchManager, IDisposable
       _batchRepository,
       _itemRepository,
       _batchMessageSender,
+      _eventSender,
       batchId,
       _applicationName,
       _subscriberTag);
@@ -157,6 +164,7 @@ public class BatchManager: IBatchManager, IDisposable
       _batchRepository,
       _itemRepository,
       _batchMessageSender,
+      _eventSender,
       batchId,
       _applicationName,
       "002");

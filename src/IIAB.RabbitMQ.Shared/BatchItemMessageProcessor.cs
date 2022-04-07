@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using HotChocolate.Subscriptions;
 using IIAB.RabbitMQ.Shared.Interface;
 using IIAB.RabbitMQ.Shared.Models;
 using IIAB.RabbitMQ.Shared.Settings;
@@ -17,6 +18,7 @@ public class BatchItemMessageProcessor : IDisposable
   private readonly IRepository<Batch> _batchRepository;
   private readonly IRepository<BatchItem> _batchItemRepository;
   private readonly IBatchMessageSender _batchMessageSender;
+  private readonly ITopicEventSender _eventSender;
   private readonly string _applicationName;
   private readonly string _subscriberTag;
   private readonly QueueSubscriber _queueSubscriber;
@@ -27,6 +29,7 @@ public class BatchItemMessageProcessor : IDisposable
     IRepository<Batch> batchRepository,
     IRepository<BatchItem> batchItemRepository,
     IBatchMessageSender batchMessageSender,
+    ITopicEventSender eventSender,
     string batchId,
     string applicationName,
     string subscriberTag)
@@ -36,6 +39,7 @@ public class BatchItemMessageProcessor : IDisposable
     _batchRepository = batchRepository;
     _batchItemRepository = batchItemRepository;
     _batchMessageSender = batchMessageSender;
+    _eventSender = eventSender;
     _applicationName = applicationName;
     _subscriberTag = subscriberTag;
     var settings = BatchSettings
@@ -81,6 +85,8 @@ public class BatchItemMessageProcessor : IDisposable
     
     _logger.LogDebug($"Processed BatchItem: {message.Id}|{JsonSerializer.Serialize(message.Body)} of {message.LinkedId} - {_getSubscriber()}");
     
+    await _eventSender.SendAsync("OnRecentBatches", $"{message.Id}-{DateTime.Now.ToLongTimeString()}");
+
     return true;
   }
   private async Task _processLastMessage(QueueMessage<object> message, BatchMessage batchMessage, string serviceId)
