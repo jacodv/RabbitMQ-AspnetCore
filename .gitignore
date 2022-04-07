@@ -1,19 +1,9 @@
 ﻿################################################################################
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
-
-/src/IIAB.RabbitMQ.Shared/obj
-/src/IIAB.RabbitMQ.Shared.Tests/obj
-/src/RabbitMQ.Publisher/obj
-/src/RabbitMQ.Subscriber/obj
+bin
+obj
 /src/.vs/RabbitMQ
 *.user
-/src/IIAB.RabbitMQ.Shared.Tests/bin/Debug/net6.0
-/src/RabbitMQ.Publisher/bin/Debug/net6.0
-/src/RabbitMQ.Subscriber/bin/Debug/net6.0
-/src/IIAB.RabbitMQ.Shared/bin/Debug/net6.0
-/src/RabbitMQ.AppServer1/bin/Debug/net6.0
-/src/RabbitMQ.AppServer1/obj
-/src/RabbitMQ.Windows.Client/bin/Debug/net6.0-windows
-/src/RabbitMQ.Windows.Client/obj
 /src/RabbitMQ.Mongo
+.sarif
