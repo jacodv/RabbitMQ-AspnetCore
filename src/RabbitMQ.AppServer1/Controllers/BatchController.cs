@@ -29,5 +29,21 @@ namespace RabbitMQ.AppServer1.Controllers
       var batch = await _batchManager.CreateBatch(model);
       return new JsonResult(batch);
     }
+
+    [HttpPost]
+    [Route("startProcessing/{batchId}")]
+    public IActionResult StartProcessing(string batchId)
+    {
+      _batchManager.StartBatchProcessing(batchId);
+      return Ok();
+    }
+
+    [HttpGet]
+    [Route("{batchId}")]
+    public async Task<Batch> Get(string batchId)
+    {
+      var batch = await _batchManager.Get(batchId);
+      return batch;
+    }
   }
 }

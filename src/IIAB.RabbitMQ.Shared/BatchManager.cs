@@ -69,9 +69,17 @@ public class BatchManager: IBatchManager, IDisposable
 
     await _itemRepository.InsertManyAsync(itemsToInsert);
 
-    _batchMessageSender.SendBatchActionMessage(batch.Id, BatchRouteSettings.StartAction);
-
     return batch;
+  }
+
+  public void StartBatchProcessing(string batchId)
+  {
+    _batchMessageSender.SendBatchActionMessage(batchId, BatchRouteSettings.StartAction);
+  }
+
+  public Task<Batch> Get(string batchId)
+  {
+    return _batchRepository.FindByIdAsync(batchId);
   }
 
   public void PublishStageMessages(string batchId, BatchStage stage)
