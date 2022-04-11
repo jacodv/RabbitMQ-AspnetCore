@@ -24,7 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="IIAB.RabbitMQ.Shared.Tests" />
+    <InternalsVisibleTo Include="RabbitMQ.Shared.Tests" />
   </ItemGroup>
 
 </Project>
