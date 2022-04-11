@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 
-namespace IIAB.RabbitMQ.Shared.Models
+namespace RabbitMQ.Shared.Models
 {
   public class RabbitPublishRequest: RabbitClientSettings
   {

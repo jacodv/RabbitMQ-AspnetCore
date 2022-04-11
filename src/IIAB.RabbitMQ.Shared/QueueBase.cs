@@ -1,11 +1,21 @@
-﻿using IIAB.RabbitMQ.Shared.Models;
-using RabbitMQ.Client;
+﻿using RabbitMQ.Client;
+using RabbitMQ.Shared.Models;
 
-namespace IIAB.RabbitMQ.Shared;
+namespace RabbitMQ.Shared;
 
-public abstract class QueueBase: IDisposable
+public abstract class QueueBase : IDisposable
 {
-  protected void ConfigureExchange(IModel model, RabbitClientSettings settings, IDictionary<string, object>? args=null)
+  protected CancellationTokenSource _cancellationTokenSource = new();
+  protected CancellationToken _cancellationToken;
+
+  protected QueueBase(CancellationTokenSource? cancellationTokenSource = null)
+  {
+    if(cancellationTokenSource==null)
+      _cancellationTokenSource = new CancellationTokenSource();
+    _cancellationToken = _cancellationTokenSource.Token;
+  }
+
+  protected void ConfigureExchange(IModel model, RabbitClientSettings settings, IDictionary<string, object>? args = null)
   {
     args ??= new Dictionary<string, object>
     {
@@ -13,7 +23,7 @@ public abstract class QueueBase: IDisposable
     };
 
     model.ExchangeDeclare(
-      settings.ExchangeName, 
+      settings.ExchangeName,
       settings.ExchangeType, arguments: args);
   }
 

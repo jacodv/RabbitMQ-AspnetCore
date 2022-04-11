@@ -1,12 +1,12 @@
 ﻿using System.Text;
 using System.Text.Json;
-using IIAB.RabbitMQ.Shared.Interface;
-using IIAB.RabbitMQ.Shared.Models;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RabbitMQ.Shared.Interface;
+using RabbitMQ.Shared.Models;
 
-namespace IIAB.RabbitMQ.Shared
+namespace RabbitMQ.Shared
 {
   public sealed class QueueSubscriber : QueueBase, IQueueSubscriber
   {
@@ -15,13 +15,16 @@ namespace IIAB.RabbitMQ.Shared
     private bool _disposed;
     private readonly string _queueName;
     private readonly string _subscriberId;
+    private string _consumerTag;
 
     public QueueSubscriber(
         IConnectionProvider connectionProvider,
         ILogger logger,
         RabbitConsumerSettings settings,
         string applicationName,
-        string tag)
+        string tag,
+        CancellationTokenSource? cancellationTokenSource = null):
+      base(cancellationTokenSource)
     {
       _logger = logger ?? throw new ArgumentNullException(nameof(logger));
       _model = connectionProvider!.GetConsumerConnection().CreateModel();
@@ -45,9 +48,18 @@ namespace IIAB.RabbitMQ.Shared
 
     public void Subscribe<T>(Func<T, string, IDictionary<string, object>, bool> callback)
     {
+      if (!string.IsNullOrEmpty(_consumerTag))
+        throw new InvalidOperationException($"Subscribe has already been started for: {_queueName}|{_subscriberId}");
+
       var consumer = new EventingBasicConsumer(_model);
       consumer.Received += (sender, e) =>
       {
+        if (_cancellationToken.IsCancellationRequested)
+        {
+          _logger.LogWarning($"Subscription[{_queueName}|{_subscriberId}] cancelled, Message not processed.");
+          return;
+        }
+
         var messageObject = _getMessageAsInstance<T>(e);
         var success = callback.Invoke(messageObject!, _subscriberId, e.BasicProperties.Headers);
         if (success)
@@ -55,33 +67,63 @@ namespace IIAB.RabbitMQ.Shared
           _model.BasicAck(e.DeliveryTag, true);
         }
       };
-
-      _model.BasicConsume(_queueName, false, consumer);
+      _consumerTag = _model.BasicConsume(_queueName, false, consumer);
     }
 
     public void SubscribeAsync<T>(Func<T?, string, IDictionary<string, object>, Task<bool>> callback)
     {
+      if (!string.IsNullOrEmpty(_consumerTag))
+        throw new InvalidOperationException($"SubscribeAsync has already been started for: {_queueName}|{_subscriberId}");
+
       var consumer = new AsyncEventingBasicConsumer(_model);
       consumer.Received += async (sender, e) =>
       {
-        var body = e.Body.ToArray();
-        var message = Encoding.UTF8.GetString(body);
-        var messageObject = JsonSerializer.Deserialize<T>(message);
-
-        var success = await callback.Invoke(messageObject, _subscriberId, e.BasicProperties.Headers);
-        if (success)
+        if (_cancellationToken.IsCancellationRequested)
         {
-          _model.BasicAck(e.DeliveryTag, true);
+          _logger.LogWarning($"Subscription[{_queueName}|{_subscriberId}] cancelled, Message not processed");
+          return;
+        }
+
+        var messageObject = _getMessageAsInstance<T>(e);
+
+        try
+        {
+          var success = await callback.Invoke(messageObject, _subscriberId, e.BasicProperties.Headers);
+          if (success)
+          {
+            _model.BasicAck(e.DeliveryTag, false);
+          }
+          else
+          {
+            _model.BasicReject(e.DeliveryTag, true);
+          }
+
+        }
+        catch(Exception ex)
+        {
+          _logger.LogError(ex, $"Message not processed: {ex.Message}\n{JsonSerializer.Serialize(messageObject)}");
+          _model.BasicReject(e.DeliveryTag, false);
         }
       };
-
-      _model.BasicConsume(_queueName, false, consumer);
+      _consumerTag = _model.BasicConsume(_queueName, false, consumer);
     }
 
     public override void Dispose()
     {
       Dispose(true);
       GC.SuppressFinalize(this);
+    }
+
+    public void Cancel(bool close)
+    {
+      _logger.LogInformation($"Cancelling[{_getLogLine()}]");
+      _model?.BasicCancelNoWait(_consumerTag);
+
+      if (_cancellationToken.CanBeCanceled)
+        _cancellationTokenSource.Cancel();
+
+      if(close)
+        _model?.Close();
     }
 
     public string SubscriberId => _subscriberId;
@@ -97,12 +139,12 @@ namespace IIAB.RabbitMQ.Shared
 
     private void _model_FlowControl(object? sender, FlowControlEventArgs e)
     {
-      _logger.LogWarning($"RabbitMQ model flow control: {e.Active}");
+      _logger.LogWarning($"RabbitMQ model flow control: {e.Active}: {_getLogLine()}");
     }
 
     private void _model_ModelShutdown(object? sender, ShutdownEventArgs e)
     {
-      _logger.LogInformation($"RabbitMQ model shutdown: {_queueName} | {e.ReplyText}");
+      _logger.LogInformation($"RabbitMQ model shutdown: {_getLogLine()} | {e.ReplyText}");
     }
 
     private void _model_CallbackException(object? sender, CallbackExceptionEventArgs e)
@@ -114,14 +156,18 @@ namespace IIAB.RabbitMQ.Shared
       }
       catch{}
 
-      _logger.LogError($"RabbitMQ model callback exception: {_queueName}-{e.Exception?.Message}\n{detail}", e.Exception);
+      _logger.LogError($"RabbitMQ model callback exception: {_getLogLine()}-{e.Exception?.Message}\n{detail}", e.Exception);
     }
 
     private void _model_BasicRecoverOk(object? sender, EventArgs e)
     {
-      _logger.LogInformation($"RabbitMQ model recover OK: {_queueName}");
+      _logger.LogInformation($"RabbitMQ model recover OK: {_getLogLine()}");
     }
 
+    private string _getLogLine()
+    {
+      return $"{_queueName}|{_subscriberId}|{_consumerTag}";
+    }
     #endregion
 
     // Protected implementation of Dispose pattern.

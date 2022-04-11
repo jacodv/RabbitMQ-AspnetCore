@@ -1,6 +1,6 @@
 ﻿using RabbitMQ.Models.Enums;
 
-namespace IIAB.RabbitMQ.Shared.Interface;
+namespace RabbitMQ.Shared.Interface;
 
 public interface IBatchMessageSender
 {

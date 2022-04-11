@@ -1,6 +1,6 @@
 ﻿using RabbitMQ.Models;
 
-namespace IIAB.RabbitMQ.Shared.Models
+namespace RabbitMQ.Shared.Models
 {
   public class BatchMessage
   {

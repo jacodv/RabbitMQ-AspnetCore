@@ -1,12 +1,13 @@
 ﻿using RabbitMQ.Client;
 
-namespace IIAB.RabbitMQ.Shared.Interface;
+namespace RabbitMQ.Shared.Interface;
 
 public interface IQueueSubscriber: IDisposable
 {
   void Subscribe<T>(Func<T, string, IDictionary<string, object>, bool> callback);
   void SubscribeAsync<T>(Func<T?, string, IDictionary<string, object>, Task<bool>> callback);
   string SubscriberId { get; }
+  void Cancel(bool close);
 }
 
 public interface IQueuePublisher
