@@ -20,11 +20,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\IIAB.RabbitMQ.Shared\IIAB.RabbitMQ.Shared.csproj" />
+    <ProjectReference Include="..\IIAB.RabbitMQ.Shared\RabbitMQ.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include ="IIAB.RabbitMQ.Shared.Tests"/>
+    <InternalsVisibleTo Include="IIAB.RabbitMQ.Shared.Tests" />
   </ItemGroup>
 
 </Project>

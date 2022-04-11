@@ -1,8 +1,8 @@
-﻿using IIAB.RabbitMQ.Shared;
-using IIAB.RabbitMQ.Shared.Interface;
-using IIAB.RabbitMQ.Shared.Models;
-using IIAB.RabbitMQ.Shared.Settings;
-using RabbitMQ.Models.Enums;
+﻿using RabbitMQ.Models.Enums;
+using RabbitMQ.Shared;
+using RabbitMQ.Shared.Interface;
+using RabbitMQ.Shared.Models;
+using RabbitMQ.Shared.Settings;
 
 namespace RabbitMQ.AppServer1.Services
 {

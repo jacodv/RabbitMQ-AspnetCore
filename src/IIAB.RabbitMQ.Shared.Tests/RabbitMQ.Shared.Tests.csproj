@@ -32,4 +32,8 @@
     <ProjectReference Include="..\RabbitMQ.AppServer1\RabbitMQ.AppServer1.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Models\" />
+  </ItemGroup>
+
 </Project>

@@ -1,6 +1,6 @@
-﻿using IIAB.RabbitMQ.Shared.Interface;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using RabbitMQ.Models;
+using RabbitMQ.Shared.Interface;
 
 namespace RabbitMQ.AppServer1.Controllers
 {

@@ -1,6 +1,6 @@
 ﻿using RabbitMQ.Client;
 
-namespace IIAB.RabbitMQ.Shared.Interface;
+namespace RabbitMQ.Shared.Interface;
 
 public interface IQueueSubscriber: IDisposable
 {

@@ -9,7 +9,7 @@ using NUnit.Framework;
 using RabbitMQ.Models;
 using RabbitMQ.Models.Enums;
 
-namespace IIAB.RabbitMQ.Shared.Tests.Integration;
+namespace RabbitMQ.Shared.Tests.Integration;
 
 public class BatchControllerTests : BaseIntegrationTests
 {

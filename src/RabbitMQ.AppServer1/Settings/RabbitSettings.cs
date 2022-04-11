@@ -1,5 +1,5 @@
-﻿using IIAB.RabbitMQ.Shared.Models;
-using RabbitMQ.Client;
+﻿using RabbitMQ.Client;
+using RabbitMQ.Shared.Models;
 
 namespace RabbitMQ.AppServer1.Settings
 {

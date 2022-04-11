@@ -1,15 +1,15 @@
 ﻿using System.Collections.Concurrent;
 using System.Text.Json;
 using HotChocolate.Subscriptions;
-using IIAB.RabbitMQ.Shared.Interface;
-using IIAB.RabbitMQ.Shared.Models;
-using IIAB.RabbitMQ.Shared.Settings;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Models;
 using RabbitMQ.Models.Enums;
+using RabbitMQ.Shared.Interface;
+using RabbitMQ.Shared.Models;
+using RabbitMQ.Shared.Settings;
 using UtilityData.Data.Interfaces;
 
-namespace IIAB.RabbitMQ.Shared;
+namespace RabbitMQ.Shared;
 
 public class BatchManager: IBatchManager, IDisposable
 {

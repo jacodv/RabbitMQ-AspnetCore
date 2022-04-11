@@ -1,8 +1,8 @@
-﻿using IIAB.RabbitMQ.Shared.Models;
-using RabbitMQ.Models;
+﻿using RabbitMQ.Models;
 using RabbitMQ.Models.Enums;
+using RabbitMQ.Shared.Models;
 
-namespace IIAB.RabbitMQ.Shared.Interface;
+namespace RabbitMQ.Shared.Interface;
 
 public interface IBatchManager
 {

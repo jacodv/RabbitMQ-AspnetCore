@@ -1,8 +1,8 @@
-﻿using IIAB.RabbitMQ.Shared;
-using IIAB.RabbitMQ.Shared.Interface;
-using IIAB.RabbitMQ.Shared.Models;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using RabbitMQ.AppServer1.Services;
+using RabbitMQ.Shared;
+using RabbitMQ.Shared.Interface;
+using RabbitMQ.Shared.Models;
 
 namespace RabbitMQ.AppServer1.Controllers;
 

@@ -1,6 +1,6 @@
 using System.Net.Http;
 
-namespace IIAB.RabbitMQ.Shared.Tests.Integration;
+namespace RabbitMQ.Shared.Tests.Integration;
 
 public class BaseIntegrationTests
 {

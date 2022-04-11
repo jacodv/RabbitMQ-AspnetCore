@@ -1,7 +1,7 @@
-﻿using IIAB.RabbitMQ.Shared.Models;
-using RabbitMQ.Client;
+﻿using RabbitMQ.Client;
+using RabbitMQ.Shared.Models;
 
-namespace IIAB.RabbitMQ.Shared.Settings
+namespace RabbitMQ.Shared.Settings
 {
   public static class BatchSettings
   {

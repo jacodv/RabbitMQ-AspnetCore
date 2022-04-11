@@ -1,13 +1,13 @@
 using System.Diagnostics;
 using FluentValidation;
 using HotChocolate.Subscriptions;
-using IIAB.RabbitMQ.Shared;
-using IIAB.RabbitMQ.Shared.Interface;
 using Microsoft.Extensions.Options;
 using RabbitMQ.AppServer1.Services;
 using RabbitMQ.AppServer1.Settings;
 using RabbitMQ.AppServer1.StartUp;
 using RabbitMQ.Models;
+using RabbitMQ.Shared;
+using RabbitMQ.Shared.Interface;
 using Serilog;
 using UtilityData.Data;
 using UtilityData.Data.Interfaces;

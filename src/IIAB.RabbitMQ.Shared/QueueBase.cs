@@ -1,7 +1,7 @@
-﻿using IIAB.RabbitMQ.Shared.Models;
-using RabbitMQ.Client;
+﻿using RabbitMQ.Client;
+using RabbitMQ.Shared.Models;
 
-namespace IIAB.RabbitMQ.Shared;
+namespace RabbitMQ.Shared;
 
 public abstract class QueueBase: IDisposable
 {

@@ -1,10 +1,10 @@
 ﻿using System.Text;
-using IIAB.RabbitMQ.Shared.Models;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RabbitMQ.Shared.Models;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
-namespace IIAB.RabbitMQ.Shared
+namespace RabbitMQ.Shared
 {
   public class QueueManager: IDisposable
   {

@@ -1,12 +1,12 @@
 ﻿using System.Text;
 using System.Text.Json;
-using IIAB.RabbitMQ.Shared.Interface;
-using IIAB.RabbitMQ.Shared.Models;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RabbitMQ.Shared.Interface;
+using RabbitMQ.Shared.Models;
 
-namespace IIAB.RabbitMQ.Shared
+namespace RabbitMQ.Shared
 {
   public sealed class QueueSubscriber : QueueBase, IQueueSubscriber
   {

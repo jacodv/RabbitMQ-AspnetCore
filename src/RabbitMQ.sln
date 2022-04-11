@@ -3,17 +3,17 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.1.32210.238
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IIAB.RabbitMQ.Shared", "IIAB.RabbitMQ.Shared\IIAB.RabbitMQ.Shared.csproj", "{1C536739-EE2A-4F2A-83FF-16F3D49FECFC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RabbitMQ.Shared", "IIAB.RabbitMQ.Shared\RabbitMQ.Shared.csproj", "{1C536739-EE2A-4F2A-83FF-16F3D49FECFC}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{5061D372-B5C0-49D7-8C84-479832C3AAB4}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IIAB.RabbitMQ.Shared.Tests", "IIAB.RabbitMQ.Shared.Tests\IIAB.RabbitMQ.Shared.Tests.csproj", "{8E492549-9AB5-4947-AE76-B47211EF094A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RabbitMQ.Shared.Tests", "IIAB.RabbitMQ.Shared.Tests\RabbitMQ.Shared.Tests.csproj", "{8E492549-9AB5-4947-AE76-B47211EF094A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitMQ.AppServer1", "RabbitMQ.AppServer1\RabbitMQ.AppServer1.csproj", "{38B280FD-D5C9-42FB-8ECD-CD588795693B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RabbitMQ.AppServer1", "RabbitMQ.AppServer1\RabbitMQ.AppServer1.csproj", "{38B280FD-D5C9-42FB-8ECD-CD588795693B}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilityData.Data", "RabbitMQ.Data\UtilityData.Data.csproj", "{14A6AAD3-40FB-4727-B6C9-7EA6265D73BC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitMQ.Models", "RabbitMQ.Models\RabbitMQ.Models.csproj", "{DBD6E4B9-BB20-49A6-985C-C7236691FAE0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RabbitMQ.Models", "RabbitMQ.Models\RabbitMQ.Models.csproj", "{DBD6E4B9-BB20-49A6-985C-C7236691FAE0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
