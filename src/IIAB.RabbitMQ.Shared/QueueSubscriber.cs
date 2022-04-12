@@ -15,7 +15,7 @@ namespace RabbitMQ.Shared
     private bool _disposed;
     private readonly string _queueName;
     private readonly string _subscriberId;
-    private string _consumerTag;
+    private string _consumerTag = null!;
 
     public QueueSubscriber(
         IConnectionProvider connectionProvider,
@@ -61,10 +61,19 @@ namespace RabbitMQ.Shared
         }
 
         var messageObject = _getMessageAsInstance<T>(e);
-        var success = callback.Invoke(messageObject!, _subscriberId, e.BasicProperties.Headers);
-        if (success)
+        try
         {
-          _model.BasicAck(e.DeliveryTag, true);
+          var success = callback.Invoke(messageObject!, _subscriberId, e.BasicProperties.Headers);
+          if (success)
+            _model.BasicAck(e.DeliveryTag, false);
+          else
+            _model.BasicReject(e.DeliveryTag, true);
+
+        }
+        catch(Exception ex)
+        {
+          _logger.LogError(ex, $"Message not processed: {ex.Message}\n{JsonSerializer.Serialize(messageObject)}");
+          _model.BasicReject(e.DeliveryTag, false);
         }
       };
       _consumerTag = _model.BasicConsume(_queueName, false, consumer);
@@ -89,14 +98,12 @@ namespace RabbitMQ.Shared
         try
         {
           var success = await callback.Invoke(messageObject, _subscriberId, e.BasicProperties.Headers);
+          
+          
           if (success)
-          {
             _model.BasicAck(e.DeliveryTag, false);
-          }
           else
-          {
             _model.BasicReject(e.DeliveryTag, true);
-          }
 
         }
         catch(Exception ex)
@@ -104,14 +111,10 @@ namespace RabbitMQ.Shared
           _logger.LogError(ex, $"Message not processed: {ex.Message}\n{JsonSerializer.Serialize(messageObject)}");
           _model.BasicReject(e.DeliveryTag, false);
         }
+
+        await Task.Yield();
       };
       _consumerTag = _model.BasicConsume(_queueName, false, consumer);
-    }
-
-    public override void Dispose()
-    {
-      Dispose(true);
-      GC.SuppressFinalize(this);
     }
 
     public void Cancel(bool close)
@@ -127,6 +130,31 @@ namespace RabbitMQ.Shared
     }
 
     public string SubscriberId => _subscriberId;
+
+    #region Disposing pattern
+    public override void Dispose()
+    {
+      Dispose(true);
+      GC.SuppressFinalize(this);
+    }
+
+    // Protected implementation of Dispose pattern.
+    private void Dispose(bool disposing)
+    {
+      if (_disposed)
+        return;
+
+      if (disposing)
+        _model?.Close();
+
+      _disposed = true;
+    }
+
+    ~QueueSubscriber()
+    {
+      Dispose(false);
+    }
+    #endregion
 
     #region Private
 
@@ -170,21 +198,5 @@ namespace RabbitMQ.Shared
     }
     #endregion
 
-    // Protected implementation of Dispose pattern.
-    private void Dispose(bool disposing)
-    {
-      if (_disposed)
-        return;
-
-      if (disposing)
-        _model?.Close();
-
-      _disposed = true;
-    }
-
-    ~QueueSubscriber()
-    {
-      Dispose(false);
-    }
   }
 }

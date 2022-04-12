@@ -6,20 +6,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using FizzWare.NBuilder;
 using FluentAssertions;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using RabbitMQ.Client;
 using RabbitMQ.Shared.Models;
 using RabbitMQ.Shared.Tests.Models;
-using Serilog;
-using Serilog.Events;
 
 namespace RabbitMQ.Shared.Tests.Integration;
 
-public class RabbitMQTests
+public class RabbitMQTests: RabbitMqTestBase<RabbitMQTests>
 {
-  private ILogger<RabbitMQTests> _logger = null!;
   private readonly ConcurrentDictionary<string,ConcurrentBag<TestMessage>> _processedMessage=new();
   
   private QueueSubscriber? _topicSubscriber1;
@@ -35,14 +31,9 @@ public class RabbitMQTests
   private bool _cancelling;
   private bool _throwOnMessage5;
 
-  public void Setup(ushort? prefetchCount=null)
+  public new void Setup(ushort? prefetchCount=null)
   {
-    var serviceProvider = _buildServices();
-
-    var connectionProvider = new ConnectionProvider(serviceProvider.GetService<ILogger<ConnectionProvider>>(), "localhost");
-    _logger = serviceProvider.GetService<ILogger<RabbitMQTests>>()!;  
-
-    _createSubscribersAndPublishers(connectionProvider, prefetchCount);
+    _createSubscribersAndPublishers(_connectionProvider, prefetchCount);
   }
 
   [TearDown]
@@ -55,10 +46,12 @@ public class RabbitMQTests
     _fanoutPublisher?.Dispose();
     _fanoutSubscriber1?.Dispose();
     _fanoutSubscriber2?.Dispose();
+
+    _connectionProvider.Close();
   }
 
   [Test]
-  public async Task Publish_10_Messages_ShouldProcessEvenly_BySubScribers()
+  public async Task Publish_10_Messages_ShouldProcessEvenly_BySubscribers()
   {
     // Setup
     Setup();
@@ -140,7 +133,7 @@ public class RabbitMQTests
   }
 
   [Test]
-  public async Task Publish_10_Messages_With1Exception_ShouldProcessEvenly_BySubScribers()
+  public async Task Publish_10_Messages_With1Exception_ShouldProcessEvenly_BySubscribers()
   {
     // Setup
     Setup();
@@ -226,28 +219,6 @@ public class RabbitMQTests
       QueueName = $"queue-{queueName}",
       RouteKey = string.Format(_routeKeyPattern, "*"),
     };
-  }
-  private ServiceProvider _buildServices()
-  {
-    Log.Logger = new LoggerConfiguration()
-      .MinimumLevel.Verbose()
-      .Enrich.FromLogContext()
-      .WriteTo.Console()
-      .WriteTo.File(
-        @"c:/temp/logs/IIAB.RabbitMQ.Shared.Tests.log",
-        LogEventLevel.Debug,
-        retainedFileCountLimit:5,
-        rollOnFileSizeLimit:true,
-        fileSizeLimitBytes:10240000
-      )
-      .CreateLogger();
-
-    return new ServiceCollection()
-      .AddLogging(builder =>
-      {
-        builder.AddSerilog();
-      })
-      .BuildServiceProvider();
   }
 
   #endregion
