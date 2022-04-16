@@ -18,7 +18,7 @@ namespace RabbitMQ.Shared
     private string _consumerTag = null!;
 
     public QueueSubscriber(
-        IConnectionProvider connectionProvider,
+        IConnectionsProvider connectionsProvider,
         ILogger logger,
         RabbitConsumerSettings settings,
         string applicationName,
@@ -27,7 +27,7 @@ namespace RabbitMQ.Shared
       base(cancellationTokenSource)
     {
       _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-      _model = connectionProvider!.GetConsumerConnection().CreateModel();
+      _model = connectionsProvider!.GetConsumerConnection().CreateModel();
       _model.BasicRecoverOk += _model_BasicRecoverOk;
       _model.CallbackException += _model_CallbackException;
       _model.ModelShutdown += _model_ModelShutdown;

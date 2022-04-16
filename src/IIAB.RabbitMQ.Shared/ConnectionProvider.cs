@@ -2,92 +2,105 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
+using HotChocolate.Language;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RabbitMQ.Shared.Enums;
 using RabbitMQ.Shared.Interface;
 
 namespace RabbitMQ.Shared;
 
 public sealed class ConnectionProvider : IConnectionProvider
 {
-  private const string ConsumerConnectionName = "Consumer";
-  private const string ProducerConnectionName = "Producer";
-
-  private readonly ILogger<ConnectionProvider>? _logger;
+  private readonly ILogger<ConnectionsProvider>? _logger;
+  private readonly RabbitMqConnectionType _connectionType;
   private readonly CancellationToken _cancellationToken;
-  private readonly ConnectionFactory _factory;
-  private Lazy<IConnection> _consumerConnection;
-  private Lazy<IConnection> _producerConnection;
+  private Lazy<IConnection>? _connection;
   private Task _connectingTask;
+  private Task _reconnectingTask;
+  private object _locker = new();
+  private readonly int _connectionProviderTimeoutSeconds;
 
   private bool _disposed;
+  private bool _closing;
 
-  public ConnectionProvider(ILogger<ConnectionProvider>? logger, string hostName, CancellationToken cancellationTokenToken = default)
+  public ConnectionProvider(
+    ILogger<ConnectionsProvider>? logger,
+    string hostName,
+    RabbitMqConnectionType connectionType,
+    CancellationToken cancellationTokenToken = default)
   {
     _logger = logger!;
+    _connectionType = connectionType;
     _cancellationToken = cancellationTokenToken;
-    _factory = new ConnectionFactory
+    _connectionProviderTimeoutSeconds = 60; //TODO From Settings
+    var factory = new ConnectionFactory
     {
       HostName = hostName,
       DispatchConsumersAsync = true,
       AutomaticRecoveryEnabled = true,
       TopologyRecoveryEnabled = true,
-      RequestedHeartbeat = TimeSpan.FromSeconds(10), //TODO From Settings
-      NetworkRecoveryInterval = TimeSpan.FromSeconds(10)//TODO From Settings
+      RequestedHeartbeat = TimeSpan.FromSeconds(30),//<-- Defaults --> //TODO From Settings
+      NetworkRecoveryInterval = TimeSpan.FromSeconds(5)//<-- Defaults --> //TODO From Settings
     };
 
     IsConnecting = true;
-    _connectingTask = Task.Factory.StartNew(() =>
+    _connectingTask = Task.Factory.StartNew<Task>(async () =>
     {
       var sw = new Stopwatch();
       sw.Start();
-      while (IsConnecting && !_cancellationToken.IsCancellationRequested && RetryCount <= 30)
+      while (IsConnecting &&
+             !_cancellationToken.IsCancellationRequested &&
+             RetryCount <= _connectionProviderTimeoutSeconds)
       {
         try
         {
-          _producerConnection = new Lazy<IConnection>(_createConnection(ProducerConnectionName));
-          _consumerConnection = new Lazy<IConnection>(_createConnection(ConsumerConnectionName));
+          _connection = new Lazy<IConnection>(_createConnection(factory));
 
           IsConnecting = false;
-          IsConnected = true;
           break;
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
-          _logger.LogWarning($"Connection to RabbitMQ could not be established - [{ex.Message}]");
+          _logger.LogWarning($"Connection [{RetryCount}]({GetConnectionName(_connectionType)}) to RabbitMQ could not be established - [{ex.Message}]");
         }
 
         RetryCount++;
-        Thread.Sleep(1000);
+        await Task.Delay(1000);
       }
 
       IsConnecting = false;
       sw.Stop();
-      _logger.LogError($"RabbitMQ connection permanently timed out: Retries: {RetryCount} - {sw.Elapsed}");
+      if (!IsConnected)
+        _logger.LogError($"RabbitMQ connection permanently timed out: Retries: {RetryCount} - {sw.Elapsed}");
     }, _cancellationToken);
   }
 
-  public IConnection GetProducerConnection()
+  public IConnection GetConnection()
   {
-    return _returnConnection(ProducerConnectionName);
-  }
-
-  public IConnection GetConsumerConnection()
-  {
-    return _returnConnection(ConsumerConnectionName);
+    return _returnConnection();
   }
   public void Close()
   {
-    if (_producerConnection.Value?.IsOpen==true)
-      _producerConnection.Value.Close(TimeSpan.FromSeconds(1));//TODO From Settings
-    if (_consumerConnection.Value?.IsOpen==true)
-      _consumerConnection.Value.Close(TimeSpan.FromSeconds(1));//TODO From Settings
+    _closing = true;
+
+    if (_connection?.Value?.IsOpen == true)
+      _connection.Value.Close(TimeSpan.FromSeconds(1));//TODO From Settings
   }
 
   public int RetryCount { get; private set; }
-  public bool IsConnected { get; private set; }
   public bool IsConnecting { get; private set; }
+  public bool IsConnected
+  {
+    get
+    {
+      if (IsConnecting)
+        return false;
+
+      return _connection?.Value.IsOpen ?? false;
+    }
+  }
 
   #region Disposing pattern
 
@@ -115,55 +128,95 @@ public sealed class ConnectionProvider : IConnectionProvider
   #endregion
 
   #region Private
-  private IConnection _createConnection(string type)
+  private IConnection _createConnection(IConnectionFactory factory)
   {
-    _factory.ClientProvidedName = $"{GetIpAddress()}-{type}";
-    var connection = _factory.CreateConnection();
-    connection.ConnectionShutdown += (o,e) => _connectionOnConnectionShutdown(type, e);
-    connection.CallbackException += ((sender, args) => _connectionCallbackException(type, args));
-    connection.ConnectionBlocked += (sender, args) => _connectionBlocked(type);
-    connection.ConnectionUnblocked += (sender, args) => _connectionUnblocked(type);
+    factory.ClientProvidedName = $"{GetConnectionName(_connectionType)}";
+    var connection = factory.CreateConnection();
 
-    _logger?.LogInformation($"Created RabbitMQ connection: {GetConnectionName(type)}");
+    _logger?.LogDebug($"Creating event listeners for: {GetConnectionName(_connectionType)}");
+    connection.ConnectionShutdown += _connectionShutdown;
+    connection.CallbackException += _connectionCallbackException;
+    connection.ConnectionBlocked += _connectionBlocked;
+    connection.ConnectionUnblocked += _connectionUnblocked;
+
+    _logger?.LogInformation($"Created RabbitMQ connection: {GetConnectionName(_connectionType)}");
 
     return connection;
   }
-  private void _connectionUnblocked(string type)
+  private void _connectionUnblocked(object sender, EventArgs e)
   {
-    _logger?.LogInformation($"RabbitMQ connection un-blocked: {GetConnectionName(type)}");
+    _logger?.LogInformation($"RabbitMQ connection un-blocked: {GetConnectionName(_connectionType)}");
   }
-  private void _connectionBlocked(string type)
+  private void _connectionBlocked(object sender, EventArgs e)
   {
-    _logger?.LogWarning($"RabbitMQ connection blocked: {GetConnectionName(type)}");
+    _logger?.LogWarning($"RabbitMQ connection blocked: {GetConnectionName(_connectionType)}");
   }
-  private void _connectionCallbackException(string type, CallbackExceptionEventArgs args)
+  private void _connectionCallbackException(object sender, CallbackExceptionEventArgs args)
   {
-    _logger?.LogError($"RabbitMQ connection callback exception: {GetConnectionName(type)}\n{JsonSerializer.Serialize(args.Detail)}",args.Exception);
+    _logger?.LogError($"RabbitMQ connection callback exception: {GetConnectionName(_connectionType)}\n{JsonSerializer.Serialize(args.Detail)}", args.Exception);
   }
-  private void _connectionOnConnectionShutdown(string type, ShutdownEventArgs args)
+  private void _connectionShutdown(object sender, ShutdownEventArgs args)
   {
-    _logger?.LogInformation($"RabbitMQ connection shutdown: {GetConnectionName(type)} - {args.ReplyText}");
-  }
-  private IConnection _returnConnection(string type)
-  {
-    while (IsConnecting)
+    _logger?.LogInformation($"RabbitMQ connection shutdown: {GetConnectionName(_connectionType)} - {args.ReplyText}");
+    if (_closing) return;
+
+    lock (_locker)
     {
-      Thread.Sleep(100);
+      if (IsConnecting)
+        return;
+      IsConnecting = true;
+      _logger?.LogDebug($"RabbitMQ starting reconnection task: {GetConnectionName(_connectionType)}");
     }
+
+#pragma warning disable CS4014
+    _waitForReconnecting();
+#pragma warning restore CS4014
+
+    _logger?.LogDebug($"RabbitMQ started reconnection task: {GetConnectionName(_connectionType)}");
+  }
+  private IConnection _returnConnection()
+  {
     if (!IsConnected && !IsConnecting)
       throw new InvalidOperationException("No RabbitMQ connection available");
 
-    return type==ProducerConnectionName?
-        _producerConnection.Value:
-        _consumerConnection.Value;
+    _waitForOrTimeOut().Wait(_cancellationToken);
+
+    return _connection!.Value;
+  }
+  private async Task _waitForOrTimeOut()
+  {
+    var waitUntil = DateTime.Now.AddSeconds(_connectionProviderTimeoutSeconds);
+    while (IsConnecting && DateTime.Now < waitUntil)
+    {
+      _logger?.LogDebug($"Waiting for connection: IsConnecting:{IsConnecting} ({GetConnectionName(_connectionType)}): {DateTime.Now} < {waitUntil} = {DateTime.Now < waitUntil}");
+      await Task.Yield();
+      await Task.Delay(1000, _cancellationToken);
+    }
+  }
+  private async Task _waitForReconnecting()
+  {
+      var waitUntil = DateTime.Now.AddSeconds(_connectionProviderTimeoutSeconds);
+      while (IsConnecting && DateTime.Now < waitUntil)
+      {
+        _logger?.LogDebug($"RabbitMQ waiting for reconnection: {DateTime.Now} < {waitUntil} = {DateTime.Now < waitUntil}");
+
+        var connection = _connection?.Value;
+        if (_cancellationToken.IsCancellationRequested || connection?.IsOpen == true)
+        {
+          IsConnecting = false;
+          break;
+        }
+        await Task.Delay(1000, _cancellationToken);
+        await Task.Yield();
+      }
   }
   #endregion
 
-  public static string GetConnectionName(string type)
+  private static string GetConnectionName(RabbitMqConnectionType type)
   {
     return $"{GetIpAddress()}-{type}";
   }
-  public static string GetIpAddress()
+  private static string GetIpAddress()
   {
     var ipHostInfo = Dns.GetHostEntry(Dns.GetHostName()); // `Dns.Resolve()` method is deprecated.
     foreach (var address in ipHostInfo.AddressList)
@@ -171,7 +224,7 @@ public sealed class ConnectionProvider : IConnectionProvider
       if (address.AddressFamily == AddressFamily.InterNetwork)
         return address.ToString();
     }
-      
+
     throw new InvalidOperationException("Ipv4 not found");
   }
 }

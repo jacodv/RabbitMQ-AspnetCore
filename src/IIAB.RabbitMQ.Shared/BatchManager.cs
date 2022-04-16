@@ -14,7 +14,7 @@ namespace RabbitMQ.Shared;
 public class BatchManager: IBatchManager, IDisposable
 {
   private readonly ILogger<BatchManager> _logger;
-  private readonly IConnectionProvider _connectionProvider;
+  private readonly IConnectionsProvider _connectionsProvider;
   private readonly IRepository<Batch> _batchRepository;
   private readonly IRepository<BatchItem> _itemRepository;
   private readonly IBatchMessageSender _batchMessageSender;
@@ -24,7 +24,7 @@ public class BatchManager: IBatchManager, IDisposable
   private readonly ConcurrentDictionary<string, List<BatchItemMessageProcessor>> _batchMessageProcessors;
 
   public BatchManager(
-    IConnectionProvider connectionProvider,
+    IConnectionsProvider connectionsProvider,
     ILogger<BatchManager> logger, 
     IRepository<Batch> batchRepository,
     IRepository<BatchItem> itemRepository,
@@ -34,7 +34,7 @@ public class BatchManager: IBatchManager, IDisposable
     string subscriberTag)
   {
     _logger = logger;
-    _connectionProvider = connectionProvider;
+    _connectionsProvider = connectionsProvider;
     _batchRepository = batchRepository;
     _itemRepository = itemRepository;
     _batchMessageSender = batchMessageSender;
@@ -157,7 +157,7 @@ public class BatchManager: IBatchManager, IDisposable
       throw new InvalidOperationException($"The batch: {batchId} has already been registered");
 
     var itemMessageProcessor = new BatchItemMessageProcessor(
-      _connectionProvider,
+      _connectionsProvider,
       _logger,
       _batchRepository,
       _itemRepository,
@@ -167,7 +167,7 @@ public class BatchManager: IBatchManager, IDisposable
       _applicationName,
       _subscriberTag);
     var itemMessageProcessor2 = new BatchItemMessageProcessor(
-      _connectionProvider,
+      _connectionsProvider,
       _logger,
       _batchRepository,
       _itemRepository,

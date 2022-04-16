@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using RabbitMQ.Shared.Enums;
+using RabbitMQ.Shared.Interface;
 using Serilog;
 using Serilog.Events;
 
@@ -8,14 +10,17 @@ namespace RabbitMQ.Shared.Tests.Integration;
 public abstract class RabbitMqTestBase<T>
 {
   private readonly ServiceProvider _serviceProvider;
-  protected readonly ConnectionProvider _connectionProvider;
+  protected readonly IConnectionProvider ConsumerConnectionProvider;
+  protected readonly ConnectionsProvider ConnectionsProvider;
   protected readonly ILogger<T> _logger;
 
   protected RabbitMqTestBase()
   {
     _serviceProvider = _buildServices();
-    _connectionProvider = new ConnectionProvider(_serviceProvider.GetService<ILogger<ConnectionProvider>>(), "localhost");
-    _logger = _serviceProvider.GetService<ILogger<T>>()!;  
+    _logger = _serviceProvider.GetService<ILogger<T>>()!;
+    ConnectionsProvider = new ConnectionsProvider(_serviceProvider.GetService<ILogger<ConnectionsProvider>>(), 
+      "localhost");
+    ConsumerConnectionProvider = ConnectionsProvider.GetConsumerConnectionProvider;
   }
 
   protected ServiceProvider ServiceProvider => _serviceProvider;

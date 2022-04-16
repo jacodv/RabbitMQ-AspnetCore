@@ -8,14 +8,14 @@ namespace RabbitMQ.AppServer1.Services
 {
   public class BatchMessageSender: IBatchMessageSender
   {
-    private readonly IConnectionProvider _connectionProvider;
+    private readonly IConnectionsProvider _connectionsProvider;
     private readonly ILogger<BatchMessageSender> _logger;
 
     public BatchMessageSender(
-      IConnectionProvider connectionProvider,
+      IConnectionsProvider connectionsProvider,
       ILogger<BatchMessageSender> logger)
     {
-      _connectionProvider = connectionProvider;
+      _connectionsProvider = connectionsProvider;
       _logger = logger;
     }
 
@@ -24,7 +24,7 @@ namespace RabbitMQ.AppServer1.Services
       var settings = BatchSettings.ForBatchProcessing(batchId).AsRabbitClientSettings();
 
       using var queuePublisher = new QueuePublisher(
-        _connectionProvider,
+        _connectionsProvider,
         _logger,
         settings);
 
@@ -37,7 +37,7 @@ namespace RabbitMQ.AppServer1.Services
     public void SendBatchActionMessage(string batchId, string action, string? status=null)
     {
       using var queuePublisher = new QueuePublisher(
-        _connectionProvider,
+        _connectionsProvider,
         _logger,
         BatchSettings.ForBatchActions().AsRabbitClientSettings());
 

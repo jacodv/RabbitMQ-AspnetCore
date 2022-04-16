@@ -33,7 +33,7 @@ public class RabbitMQTests: RabbitMqTestBase<RabbitMQTests>
 
   public new void Setup(ushort? prefetchCount=null)
   {
-    _createSubscribersAndPublishers(_connectionProvider, prefetchCount);
+    _createSubscribersAndPublishers(ConnectionsProvider, prefetchCount);
   }
 
   [TearDown]
@@ -47,7 +47,7 @@ public class RabbitMQTests: RabbitMqTestBase<RabbitMQTests>
     _fanoutSubscriber1?.Dispose();
     _fanoutSubscriber2?.Dispose();
 
-    _connectionProvider.Close();
+    ConnectionsProvider.Close();
   }
 
   [Test]
@@ -159,27 +159,27 @@ public class RabbitMQTests: RabbitMqTestBase<RabbitMQTests>
 
   #region Private
 
-  private void _createSubscribersAndPublishers(ConnectionProvider connectionProvider, ushort? prefetchCount=null)
+  private void _createSubscribersAndPublishers(ConnectionsProvider connectionsProvider, ushort? prefetchCount=null)
   {
     var topicSettings = _getRabbitMqSettings(ExchangeType.Topic, "topic-tests");
     if(prefetchCount.HasValue)
       topicSettings.PreFetchCount = prefetchCount.Value;
-    _topicSubscriber1 = _createSubscriber(connectionProvider, topicSettings, "TopicService", "001");
-    _topicSubscriber2 = _createSubscriber(connectionProvider, topicSettings, "TopicService", "002");
-    _topicPublisher = new QueuePublisher(connectionProvider, _logger, topicSettings, _cancellationTokenSource);
+    _topicSubscriber1 = _createSubscriber(connectionsProvider, topicSettings, "TopicService", "001");
+    _topicSubscriber2 = _createSubscriber(connectionsProvider, topicSettings, "TopicService", "002");
+    _topicPublisher = new QueuePublisher(connectionsProvider, _logger, topicSettings, _cancellationTokenSource);
 
     var fanOutSettings = _getRabbitMqSettings(ExchangeType.Fanout, "fanout-tests");
     if(prefetchCount.HasValue)
       fanOutSettings.PreFetchCount = prefetchCount.Value;
-    _fanoutSubscriber1 = _createSubscriber(connectionProvider, fanOutSettings, "FanOutService", "001");
-    _fanoutSubscriber2 = _createSubscriber(connectionProvider, fanOutSettings, "FanOutService", "002");
-    _fanoutPublisher = new QueuePublisher(connectionProvider, _logger, fanOutSettings, _cancellationTokenSource);
+    _fanoutSubscriber1 = _createSubscriber(connectionsProvider, fanOutSettings, "FanOutService", "001");
+    _fanoutSubscriber2 = _createSubscriber(connectionsProvider, fanOutSettings, "FanOutService", "002");
+    _fanoutPublisher = new QueuePublisher(connectionsProvider, _logger, fanOutSettings, _cancellationTokenSource);
   }
 
-  private QueueSubscriber? _createSubscriber(ConnectionProvider connectionProvider, RabbitConsumerSettings topicSettings, string appName, string tagName)
+  private QueueSubscriber? _createSubscriber(ConnectionsProvider connectionsProvider, RabbitConsumerSettings topicSettings, string appName, string tagName)
   {
     var subscriber = new QueueSubscriber(
-      connectionProvider,
+      connectionsProvider,
       _logger,
       topicSettings,
       appName,

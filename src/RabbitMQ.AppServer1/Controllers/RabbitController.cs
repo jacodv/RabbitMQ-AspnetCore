@@ -11,16 +11,16 @@ namespace RabbitMQ.AppServer1.Controllers;
 public class RabbitController : ControllerBase
 {
   private readonly ILogger<RabbitController> _logger;
-  private readonly IConnectionProvider _connectionProvider;
+  private readonly IConnectionsProvider _connectionsProvider;
   private readonly IEnumerable<RabbitHostedService?> _consumers;
 
   public RabbitController(
     ILogger<RabbitController> logger, 
-    IConnectionProvider connectionProvider,
+    IConnectionsProvider connectionsProvider,
     IServiceProvider serviceProvider)
   {
     _logger = logger;
-    _connectionProvider = connectionProvider;
+    _connectionsProvider = connectionsProvider;
     _consumers = serviceProvider.GetServices<IHostedService>()
       .Where(x => x is RabbitHostedService)
       .Select(x => x is RabbitHostedService instance ?
@@ -48,7 +48,7 @@ public class RabbitController : ControllerBase
   {
     try
     {
-      using var publisher = new QueuePublisher(_connectionProvider, _logger, model);
+      using var publisher = new QueuePublisher(_connectionsProvider, _logger, model);
       publisher.Publish(model.QueueMessage, model.RouteKey, null);
       _logger.LogDebug($"Published queue message: {model}");
     }

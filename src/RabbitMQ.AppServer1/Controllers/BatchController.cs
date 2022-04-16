@@ -9,16 +9,16 @@ namespace RabbitMQ.AppServer1.Controllers
   public class BatchController : ControllerBase
   {
     private readonly ILogger<BatchController> _logger;
-    private readonly IConnectionProvider _connectionProvider;
+    private readonly IConnectionsProvider _connectionsProvider;
     private readonly IBatchManager _batchManager;
 
     public BatchController(
       ILogger<BatchController> logger,
-      IConnectionProvider connectionProvider,
+      IConnectionsProvider connectionsProvider,
       IBatchManager batchManager)
     {
       _logger = logger;
-      _connectionProvider = connectionProvider;
+      _connectionsProvider = connectionsProvider;
       _batchManager = batchManager;
     }
 

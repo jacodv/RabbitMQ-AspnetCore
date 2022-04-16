@@ -9,7 +9,7 @@ namespace RabbitMQ.AppServer1.Services
   public class BatchActionHostedService: IHostedService, IDisposable
   {
     private readonly ILogger<RabbitHostedService>? _logger;
-    private readonly IConnectionProvider? _connectionProvider;
+    private readonly IConnectionsProvider? _connectionProvider;
     private readonly IBatchManager _batchManager;
     private readonly string _applicationName;
     private readonly string _tag;
@@ -17,7 +17,7 @@ namespace RabbitMQ.AppServer1.Services
 
     public BatchActionHostedService(
       ILogger<RabbitHostedService>? logger, 
-      IConnectionProvider? connectionProvider,
+      IConnectionsProvider? connectionProvider,
       IBatchManager batchManager,
       string applicationName,
       string tag)

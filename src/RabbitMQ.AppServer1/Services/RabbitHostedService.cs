@@ -7,7 +7,7 @@ namespace RabbitMQ.AppServer1.Services
   public class RabbitHostedService : IHostedService,IDisposable
   {
     private readonly ILogger<RabbitHostedService>? _logger;
-    private readonly IConnectionProvider? _connectionProvider;
+    private readonly IConnectionsProvider? _connectionProvider;
     private readonly RabbitConsumerSettings _consumerSettings;
     private readonly string _applicationName;
     private readonly string _tag;
@@ -16,7 +16,7 @@ namespace RabbitMQ.AppServer1.Services
 
     public RabbitHostedService(
       ILogger<RabbitHostedService>? logger, 
-      IConnectionProvider? connectionProvider,
+      IConnectionsProvider? connectionProvider,
       RabbitConsumerSettings consumerSettings,
       string applicationName,
       string tag)
