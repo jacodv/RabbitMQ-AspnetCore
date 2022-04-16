@@ -1,5 +1,4 @@
-﻿using HotChocolate.Subscriptions;
-using RabbitMQ.Shared;
+﻿using RabbitMQ.Shared;
 using RabbitMQ.Shared.Interface;
 using RabbitMQ.Shared.Models;
 using RabbitMQ.Shared.Settings;
@@ -13,7 +12,7 @@ namespace RabbitMQ.AppServer1.Services
     private readonly IBatchManager _batchManager;
     private readonly string _applicationName;
     private readonly string _tag;
-    private IQueueSubscriber? _queueSubscriber;
+    private IQueueSubscriber<QueueMessage<object>>? _queueSubscriber;
 
     public BatchActionHostedService(
       ILogger<RabbitHostedService>? logger, 
@@ -37,14 +36,14 @@ namespace RabbitMQ.AppServer1.Services
         .ForBatchActions()
         .AsRabbitConsumerSettings(BatchRouteSettings.AllActions);
 
-      _queueSubscriber = new QueueSubscriber(
+      _queueSubscriber = new QueueSubscriber<QueueMessage<object>>(
         _connectionProvider!,
         _logger!,
         settings,
         _applicationName,
         _tag);
 
-      _queueSubscriber.SubscribeAsync<QueueMessage<object>>(_handleMessage);
+      _queueSubscriber.SubscribeAsync(_handleMessage);
 
       _logger?.LogInformation(_getLogLine("Starting"));
 
@@ -69,7 +68,9 @@ namespace RabbitMQ.AppServer1.Services
     private async Task<bool> _handleMessage(QueueMessage<object> message, string subscriberId, IDictionary<string,object> headers)
     {
       // IGNORE Headers for now
+      
       return await _batchManager.ProcessBatchAction(message);
+
     }
     private string _getLogLine(string action)
     {

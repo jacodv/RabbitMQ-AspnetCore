@@ -11,7 +11,7 @@ namespace RabbitMQ.AppServer1.Services
     private readonly RabbitConsumerSettings _consumerSettings;
     private readonly string _applicationName;
     private readonly string _tag;
-    private IQueueSubscriber? _queueSubscriber;
+    private IQueueSubscriber<QueueMessage<object>>? _queueSubscriber;
     private readonly MiscellaneousQueueProcessor _miscProcessor;
 
     public RabbitHostedService(
@@ -33,14 +33,14 @@ namespace RabbitMQ.AppServer1.Services
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-      _queueSubscriber = new QueueSubscriber(
+      _queueSubscriber = new QueueSubscriber<QueueMessage<object>>(
         _connectionProvider,
         _logger,
         _consumerSettings,
         _applicationName,
         _tag);
 
-      _queueSubscriber.SubscribeAsync<QueueMessage<object>>(_handleMessage);
+      _queueSubscriber.SubscribeAsync(_handleMessage);
 
       _logger?.LogInformation(_getLogLine("Starting"));
 

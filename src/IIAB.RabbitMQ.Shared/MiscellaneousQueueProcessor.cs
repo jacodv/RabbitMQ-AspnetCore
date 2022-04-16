@@ -24,7 +24,7 @@ namespace RabbitMQ.Shared
     private static readonly ConcurrentDictionary<string, int> _batchesProcessed = new();
     private static readonly ConcurrentDictionary<string, int> _batchExpectedCount = new();
     private static readonly ConcurrentDictionary<string, bool> _batchBatchCreated = new();
-    private readonly ConcurrentDictionary<string, QueueSubscriber> _batchProcessors = new();
+    private readonly ConcurrentDictionary<string, QueueSubscriber<QueueMessage<BatchMessage>>> _batchProcessors = new();
 
     #region IQueueProcessor
     public async Task ProcessMessage(QueueMessage<object> message, string serviceId)
@@ -106,22 +106,22 @@ namespace RabbitMQ.Shared
         QueueName = $"batch-queue.{message.LinkedId}"
       };
 
-      var queueSubscriber1 = new QueueSubscriber(
+      var queueSubscriber1 = new QueueSubscriber<QueueMessage<BatchMessage>>(
         _connectionsProvider,
         _logger,
         consumerSettings,
         "AppServer",
         "001");
-      queueSubscriber1.SubscribeAsync<QueueMessage<BatchMessage>>(_processItemMessage!);
+      queueSubscriber1.SubscribeAsync(_processItemMessage!);
       _batchProcessors.TryAdd(_getBatchServiceId(message.LinkedId, queueSubscriber1.SubscriberId), queueSubscriber1);
 
-      var queueSubscriber2 = new QueueSubscriber(
+      var queueSubscriber2 = new QueueSubscriber<QueueMessage<BatchMessage>>(
         _connectionsProvider,
         _logger,
         consumerSettings,
         "AppServer",
         "002");
-      queueSubscriber2.SubscribeAsync<QueueMessage<BatchMessage>>(_processItemMessage!);
+      queueSubscriber2.SubscribeAsync(_processItemMessage!);
       _batchProcessors.TryAdd(_getBatchServiceId(message.LinkedId, queueSubscriber2.SubscriberId), queueSubscriber2);
 
       return _createBatchItems(message, batchMessage, serviceId);

@@ -8,7 +8,7 @@ using RabbitMQ.Shared.Models;
 
 namespace RabbitMQ.Shared
 {
-  public sealed class QueueSubscriber : QueueBase, IQueueSubscriber
+  public sealed class QueueSubscriber<T> : QueueBase, IQueueSubscriber<T>
   {
     private readonly ILogger _logger;
     private readonly IModel _model;
@@ -16,6 +16,7 @@ namespace RabbitMQ.Shared
     private readonly string _queueName;
     private readonly string _subscriberId;
     private string _consumerTag = null!;
+    private int _processed=0;
 
     public QueueSubscriber(
         IConnectionsProvider connectionsProvider,
@@ -32,6 +33,7 @@ namespace RabbitMQ.Shared
       _model.CallbackException += _model_CallbackException;
       _model.ModelShutdown += _model_ModelShutdown;
       _model.FlowControl += _model_FlowControl;
+      LastMessages = new SlidingBuffer<T>(10); //TODO: SEt from settings
 
       ConfigureExchange(_model, settings);
 
@@ -46,7 +48,7 @@ namespace RabbitMQ.Shared
       _logger.LogDebug($"Started Queue Subscriber:{_subscriberId}\n{JsonSerializer.Serialize(settings)}");
     }
 
-    public void Subscribe<T>(Func<T, string, IDictionary<string, object>, bool> callback)
+    public void Subscribe(Func<T, string, IDictionary<string, object>, bool> callback)
     {
       if (!string.IsNullOrEmpty(_consumerTag))
         throw new InvalidOperationException($"Subscribe has already been started for: {_queueName}|{_subscriberId}");
@@ -60,7 +62,7 @@ namespace RabbitMQ.Shared
           return;
         }
 
-        var messageObject = _getMessageAsInstance<T>(e);
+        var messageObject = _getMessageAsInstance(e);
         try
         {
           var success = callback.Invoke(messageObject!, _subscriberId, e.BasicProperties.Headers);
@@ -79,7 +81,7 @@ namespace RabbitMQ.Shared
       _consumerTag = _model.BasicConsume(_queueName, false, consumer);
     }
 
-    public void SubscribeAsync<T>(Func<T?, string, IDictionary<string, object>, Task<bool>> callback)
+    public void SubscribeAsync(Func<T?, string, IDictionary<string, object>, Task<bool>> callback)
     {
       if (!string.IsNullOrEmpty(_consumerTag))
         throw new InvalidOperationException($"SubscribeAsync has already been started for: {_queueName}|{_subscriberId}");
@@ -93,7 +95,7 @@ namespace RabbitMQ.Shared
           return;
         }
 
-        var messageObject = _getMessageAsInstance<T>(e);
+        var messageObject = _getMessageAsInstance(e);
 
         try
         {
@@ -130,6 +132,8 @@ namespace RabbitMQ.Shared
     }
 
     public string SubscriberId => _subscriberId;
+    public SlidingBuffer<T> LastMessages { get; }
+    public int Processed => _processed;
 
     #region Disposing pattern
     public override void Dispose()
@@ -158,11 +162,14 @@ namespace RabbitMQ.Shared
 
     #region Private
 
-    private T? _getMessageAsInstance<T>(BasicDeliverEventArgs e)
+    private T? _getMessageAsInstance(BasicDeliverEventArgs e)
     {
       var body = e.Body.ToArray();
       var message = Encoding.UTF8.GetString(body);
-      return JsonSerializer.Deserialize<T>(message);
+      var messageObject = JsonSerializer.Deserialize<T>(message);
+      LastMessages.Add(messageObject!);
+      Interlocked.Increment(ref _processed);
+      return messageObject;
     }
 
     private void _model_FlowControl(object? sender, FlowControlEventArgs e)

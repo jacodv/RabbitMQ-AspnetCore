@@ -21,7 +21,7 @@ public class BatchItemMessageProcessor : IDisposable
   private readonly ITopicEventSender _eventSender;
   private readonly string _applicationName;
   private readonly string _subscriberTag;
-  private readonly QueueSubscriber _queueSubscriber;
+  private readonly QueueSubscriber<QueueMessage<object>> _queueSubscriber;
 
   public BatchItemMessageProcessor(
     IConnectionsProvider connectionsProvider,
@@ -46,7 +46,7 @@ public class BatchItemMessageProcessor : IDisposable
       .ForBatchProcessing(batchId)
       .AsRabbitConsumerSettings(string.Format(BatchRouteSettings.AllStageProcessing, batchId));
 
-    _queueSubscriber = new QueueSubscriber(
+    _queueSubscriber = new QueueSubscriber<QueueMessage<object>>(
       connectionsProvider,
       logger,
       settings,
@@ -54,7 +54,7 @@ public class BatchItemMessageProcessor : IDisposable
       subscriberTag
     );
 
-    _queueSubscriber.SubscribeAsync<QueueMessage<object>>(_processBatchMessage!);
+    _queueSubscriber.SubscribeAsync(_processBatchMessage!);
     _logger.LogDebug($"Constructed {nameof(BatchItemMessageProcessor)} - {_getSubscriber()}");
   }
 
