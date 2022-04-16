@@ -10,14 +10,14 @@ namespace RabbitMQ.Shared
   public class MiscellaneousQueueProcessor : IQueueProcessor, IDisposable
   {
     private readonly ILogger _logger;
-    private readonly IConnectionProvider _connectionProvider;
+    private readonly IConnectionsProvider _connectionsProvider;
 
     public MiscellaneousQueueProcessor(
       ILogger logger,
-      IConnectionProvider connectionProvider)
+      IConnectionsProvider connectionsProvider)
     {
       _logger = logger;
-      _connectionProvider = connectionProvider;
+      _connectionsProvider = connectionsProvider;
     }
 
     private static readonly SemaphoreSlim _locker = new(1);
@@ -107,7 +107,7 @@ namespace RabbitMQ.Shared
       };
 
       var queueSubscriber1 = new QueueSubscriber(
-        _connectionProvider,
+        _connectionsProvider,
         _logger,
         consumerSettings,
         "AppServer",
@@ -116,7 +116,7 @@ namespace RabbitMQ.Shared
       _batchProcessors.TryAdd(_getBatchServiceId(message.LinkedId, queueSubscriber1.SubscriberId), queueSubscriber1);
 
       var queueSubscriber2 = new QueueSubscriber(
-        _connectionProvider,
+        _connectionsProvider,
         _logger,
         consumerSettings,
         "AppServer",
@@ -141,7 +141,7 @@ namespace RabbitMQ.Shared
           ExchangeName = RabbitConsumerSettings.BATCH_EXCHANGE,
           ExchangeType = ExchangeType.Topic,
         };
-        using var queuePublisher = new QueuePublisher(_connectionProvider, _logger, settings);
+        using var queuePublisher = new QueuePublisher(_connectionsProvider, _logger, settings);
 
         var messages = Enumerable.Range(1, batchMessage.ExpectedCount).Select(itemNo => new QueueMessage<BatchMessage>()
         {
@@ -253,7 +253,7 @@ namespace RabbitMQ.Shared
           ExchangeName = RabbitConsumerSettings.MISC_ECHANGE,
           ExchangeType = ExchangeType.Fanout,
         };
-        using var queuePublisher = new QueuePublisher(_connectionProvider, _logger, settings);
+        using var queuePublisher = new QueuePublisher(_connectionsProvider, _logger, settings);
 
         var message = new QueueMessage<BatchMessage>()
         {

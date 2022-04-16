@@ -16,9 +16,24 @@ public interface IQueuePublisher
   void Publish<T>(IList<T> messages, string routingKey, IDictionary<string, object>? messageAttributes, int? timeToLive = null);
 }
 
-public interface IConnectionProvider : IDisposable
+public interface IConnectionsProvider : IDisposable
 {
   IConnection GetProducerConnection();
   IConnection GetConsumerConnection();
   void Close();
+
+  bool IsConsumerConnected { get; }
+  bool IsProducerConnected { get; }
+  IConnectionProvider GetConsumerConnectionProvider { get; }
+  IConnectionProvider GetProducerConnectionProvider { get; }
+}
+
+public interface IConnectionProvider : IDisposable
+{
+  IConnection GetConnection();
+  void Close();
+
+  int RetryCount { get; }
+  bool IsConnecting { get;}
+  bool IsConnected { get; }
 }

@@ -57,7 +57,7 @@ try
   var rabbitSettings = new RabbitSettings();
   builder.Configuration.GetSection(nameof(RabbitSettings)).Bind(rabbitSettings);
   // Add services to the container.
-  builder.Services.AddSingleton<IConnectionProvider>(x => new ConnectionProvider(x.GetService<ILogger<ConnectionProvider>>(), rabbitSettings.HostName));
+  builder.Services.AddSingleton<IConnectionsProvider>(x => new ConnectionsProvider(x.GetService<ILogger<ConnectionsProvider>>(), rabbitSettings.HostName));
   builder.Services.AddSingleton<IBatchMessageSender, BatchMessageSender>();
 
   //// First Service
@@ -80,7 +80,7 @@ try
 
   // Add a batch manager
   builder.Services.AddSingleton<IBatchManager>(x => new BatchManager(
-    x.GetService<IConnectionProvider>()!,
+    x.GetService<IConnectionsProvider>()!,
     x.GetService<ILogger<BatchManager>>()!,
     x.GetService<IRepository<Batch>>()!,
     x.GetService<IRepository<BatchItem>>()!,
@@ -93,7 +93,7 @@ try
   builder.Services.AddSingleton<IHostedService, BatchActionHostedService>(x =>
     new BatchActionHostedService(
       x.GetService<ILogger<RabbitHostedService>>()!,
-      x.GetService<IConnectionProvider>()!,
+      x.GetService<IConnectionsProvider>()!,
       x.GetService<IBatchManager>()!,
       "WebServer",
       "BatchActions001"));

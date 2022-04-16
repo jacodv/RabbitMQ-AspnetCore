@@ -15,12 +15,12 @@ public sealed class QueuePublisher : QueueBase, IQueuePublisher
   private readonly IModel _model;
   private bool _disposed;
 
-  public QueuePublisher(IConnectionProvider connectionProvider, ILogger logger, RabbitClientSettings rabbitClientSettings, CancellationTokenSource? cancellationTokenSource = null):
+  public QueuePublisher(IConnectionsProvider connectionsProvider, ILogger logger, RabbitClientSettings rabbitClientSettings, CancellationTokenSource? cancellationTokenSource = null):
     base(cancellationTokenSource)
   {
     _logger = logger;
     _rabbitClientSettings = rabbitClientSettings;
-    _model = connectionProvider.GetProducerConnection().CreateModel();
+    _model = connectionsProvider.GetProducerConnection().CreateModel();
 
     ConfigureExchange(_model, rabbitClientSettings);
   }

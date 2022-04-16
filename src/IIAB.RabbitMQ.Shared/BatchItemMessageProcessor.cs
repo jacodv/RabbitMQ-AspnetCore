@@ -13,7 +13,7 @@ namespace RabbitMQ.Shared;
 
 public class BatchItemMessageProcessor : IDisposable
 {
-  private readonly IConnectionProvider _connectionProvider;
+  private readonly IConnectionsProvider _connectionsProvider;
   private readonly ILogger _logger;
   private readonly IRepository<Batch> _batchRepository;
   private readonly IRepository<BatchItem> _batchItemRepository;
@@ -24,7 +24,7 @@ public class BatchItemMessageProcessor : IDisposable
   private readonly QueueSubscriber _queueSubscriber;
 
   public BatchItemMessageProcessor(
-    IConnectionProvider connectionProvider,
+    IConnectionsProvider connectionsProvider,
     ILogger logger,
     IRepository<Batch> batchRepository,
     IRepository<BatchItem> batchItemRepository,
@@ -34,7 +34,7 @@ public class BatchItemMessageProcessor : IDisposable
     string applicationName,
     string subscriberTag)
   {
-    _connectionProvider = connectionProvider;
+    _connectionsProvider = connectionsProvider;
     _logger = logger;
     _batchRepository = batchRepository;
     _batchItemRepository = batchItemRepository;
@@ -47,7 +47,7 @@ public class BatchItemMessageProcessor : IDisposable
       .AsRabbitConsumerSettings(string.Format(BatchRouteSettings.AllStageProcessing, batchId));
 
     _queueSubscriber = new QueueSubscriber(
-      connectionProvider,
+      connectionsProvider,
       logger,
       settings,
       applicationName,
