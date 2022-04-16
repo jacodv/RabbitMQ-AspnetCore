@@ -2,11 +2,13 @@
 
 namespace RabbitMQ.Shared.Interface;
 
-public interface IQueueSubscriber: IDisposable
+public interface IQueueSubscriber<T>: IDisposable
 {
-  void Subscribe<T>(Func<T, string, IDictionary<string, object>, bool> callback);
-  void SubscribeAsync<T>(Func<T?, string, IDictionary<string, object>, Task<bool>> callback);
+  void Subscribe(Func<T, string, IDictionary<string, object>, bool> callback);
+  void SubscribeAsync(Func<T?, string, IDictionary<string, object>, Task<bool>> callback);
   string SubscriberId { get; }
+  SlidingBuffer<T> LastMessages { get; }
+  int Processed { get; }
   void Cancel(bool close);
 }
 

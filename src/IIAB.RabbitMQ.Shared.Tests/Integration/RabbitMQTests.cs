@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,10 +19,10 @@ public class RabbitMQTests: RabbitMqTestBase<RabbitMQTests>
 {
   private readonly ConcurrentDictionary<string,ConcurrentBag<TestMessage>> _processedMessage=new();
   
-  private QueueSubscriber? _topicSubscriber1;
-  private QueueSubscriber? _topicSubscriber2;
-  private QueueSubscriber? _fanoutSubscriber1;
-  private QueueSubscriber? _fanoutSubscriber2;
+  private QueueSubscriber<TestMessage>? _topicSubscriber1;
+  private QueueSubscriber<TestMessage>? _topicSubscriber2;
+  private QueueSubscriber<TestMessage>? _fanoutSubscriber1;
+  private QueueSubscriber<TestMessage>? _fanoutSubscriber2;
 
   private QueuePublisher _topicPublisher;
   private QueuePublisher _fanoutPublisher;
@@ -157,6 +158,36 @@ public class RabbitMQTests: RabbitMqTestBase<RabbitMQTests>
       .Be(4);
   }
 
+  [Test]
+  public async Task Publish_10_Messages_Should_CreateBuffer_And_PersistLastMessages()
+  {
+    // Setup
+    Setup();
+    var messages = Builder<TestMessage>
+      .CreateListOfSize(10)
+      .All()
+      .WithFactory((i => new TestMessage("Body", i, 10)))
+      .Build();
+
+    // Action
+    _fanoutPublisher.Publish(messages, string.Format(_routeKeyPattern,"Processing"), null);
+    await Task.Delay(1000);
+
+    //Assert
+    _fanoutSubscriber1!.Processed
+      .Should()
+      .Be(_fanoutSubscriber2!.Processed)
+      .And
+      .Be(10);
+
+    _fanoutSubscriber1!.LastMessages.Count()
+      .Should()
+      .Be(_fanoutSubscriber2!.LastMessages.Count())
+      .And
+      .Be(10);
+
+  }
+
   #region Private
 
   private void _createSubscribersAndPublishers(ConnectionsProvider connectionsProvider, ushort? prefetchCount=null)
@@ -176,16 +207,16 @@ public class RabbitMQTests: RabbitMqTestBase<RabbitMQTests>
     _fanoutPublisher = new QueuePublisher(connectionsProvider, _logger, fanOutSettings, _cancellationTokenSource);
   }
 
-  private QueueSubscriber? _createSubscriber(ConnectionsProvider connectionsProvider, RabbitConsumerSettings topicSettings, string appName, string tagName)
+  private QueueSubscriber<TestMessage>? _createSubscriber(ConnectionsProvider connectionsProvider, RabbitConsumerSettings topicSettings, string appName, string tagName)
   {
-    var subscriber = new QueueSubscriber(
+    var subscriber = new QueueSubscriber<TestMessage>(
       connectionsProvider,
       _logger,
       topicSettings,
       appName,
       tagName,
       _cancellationTokenSource);
-    subscriber.SubscribeAsync<TestMessage>(
+    subscriber.SubscribeAsync(
       _messageHandler!);
     _processedMessage.TryAdd(subscriber.SubscriberId, new ConcurrentBag<TestMessage>());
 
